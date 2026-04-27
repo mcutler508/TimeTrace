@@ -35,20 +35,24 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
     }
     setStatus('loading');
     try {
-      const [list, mine] = await Promise.all([
-        fetchLeaderboard(50),
-        fetchPlayerRank(playerId),
-      ]);
+      const list = await fetchLeaderboard(50);
+      console.info('[leaderboard] fetched', list.length, 'players');
       setEntries(list);
-      if (mine) {
-        setMeRank(mine.rank);
-        setMeEntry(mine.entry);
-      } else {
-        setMeRank(null);
-        setMeEntry(null);
+      try {
+        const mine = await fetchPlayerRank(playerId);
+        if (mine) {
+          setMeRank(mine.rank);
+          setMeEntry(mine.entry);
+        } else {
+          setMeRank(null);
+          setMeEntry(null);
+        }
+      } catch (rankErr) {
+        console.warn('[leaderboard] rank lookup failed but list loaded', rankErr);
       }
       setStatus(list.length === 0 ? 'empty' : 'ready');
-    } catch {
+    } catch (err) {
+      console.warn('[leaderboard] load failed', err);
       setStatus('error');
     }
   }
@@ -113,7 +117,7 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
         </div>
       </div>
 
-      {status === 'loading' && (
+      {status === 'loading' && entries.length === 0 && (
         <div className="flex flex-col gap-2">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
@@ -151,7 +155,7 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
         </div>
       )}
 
-      {status === 'empty' && (
+      {status === 'empty' && entries.length === 0 && (
         <div className="card-sticker px-4 py-5 text-center">
           <div className="text-poster text-sm text-splat-paper">EMPTY BOARD</div>
           <p className="text-[12px] text-splat-paper/70 mt-2 leading-snug">
@@ -160,13 +164,13 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
         </div>
       )}
 
-      {status === 'ready' && (
+      {entries.length > 0 && (
         <div className="text-poster text-[10px] tracking-[0.32em] text-splat-paper/55 px-1">
           {entries.length} {entries.length === 1 ? 'PLAYER' : 'PLAYERS'} ON THE BOARD
         </div>
       )}
 
-      {status === 'ready' && (
+      {entries.length > 0 && (
         <ol className="flex flex-col gap-2">
           {entries.map((e, i) => {
             const rank = i + 1;
@@ -216,7 +220,7 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
         </ol>
       )}
 
-      {status === 'ready' && meRank != null && !meInTopList && (
+      {entries.length > 0 && meRank != null && !meInTopList && (
         <div className="sticky bottom-2 mt-2 card-sticker px-3 py-2.5 flex items-center gap-3">
           <div className="flex items-center justify-center w-9 h-9 rounded-lg border-2 border-splat-black bg-splat-yellow text-splat-black">
             <span className="text-poster text-sm tabular-nums">#{meRank}</span>

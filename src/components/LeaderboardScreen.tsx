@@ -21,6 +21,29 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
   const [status, setStatus] = useState<Status>('loading');
   const [meRank, setMeRank] = useState<number | null>(null);
   const [meEntry, setMeEntry] = useState<LeaderboardEntry | null>(null);
+  const [rawFetch, setRawFetch] = useState<string>('(not fetched yet)');
+
+  async function rawProbe() {
+    try {
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      if (!url || !key) {
+        setRawFetch('NO ENV VARS');
+        return;
+      }
+      const r = await fetch(
+        `${url}/rest/v1/players?select=id,name,total_points&order=total_points.desc.nullslast&limit=50`,
+        {
+          headers: { apikey: key, Authorization: `Bearer ${key}` },
+          cache: 'no-store',
+        },
+      );
+      const t = await r.text();
+      setRawFetch(`HTTP ${r.status} · ${t.slice(0, 400)}`);
+    } catch (e) {
+      setRawFetch(`THREW: ${(e as Error).message}`);
+    }
+  }
 
   async function load() {
     if (!isLeaderboardConfigured()) {
@@ -53,6 +76,7 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
 
   useEffect(() => {
     load();
+    rawProbe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerId]);
 
@@ -212,6 +236,21 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
         DEBUG · status={status} · entries.length={entries.length} ·
         meRank={meRank ?? 'null'} · ids=[
         {entries.map((e) => e.name).join(', ') || 'EMPTY'}]
+      </div>
+
+      <div
+        style={{
+          background: '#001a33',
+          color: '#88ddff',
+          border: '2px dashed #88ddff',
+          padding: 10,
+          fontFamily: 'monospace',
+          fontSize: 11,
+          wordBreak: 'break-all',
+          whiteSpace: 'pre-wrap',
+        }}
+      >
+        RAW PROBE (no supabase-js): {rawFetch}
       </div>
 
       <div style={{ display: 'block', width: '100%' }}>

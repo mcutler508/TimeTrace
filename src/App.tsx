@@ -60,6 +60,7 @@ export default function App() {
     ...TUTORIAL_CHALLENGE,
     unlockThreshold: 0,
     title: 'Tutorial',
+    chapter: 1,
   };
   const currentChallenge: ChallengeMeta = inTutorial
     ? tutorialAsMeta

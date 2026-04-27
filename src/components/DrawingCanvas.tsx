@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, forwardRef } from 'react';
-import type { AttemptResult, Point } from '../game/types';
+import type { AttemptResult, Point, PortalPair } from '../game/types';
 import { scaleNormalizedToCanvas } from '../game/pathUtils';
 import { haptics } from '../game/haptics';
 import { sfx } from '../game/audio';
@@ -29,6 +29,7 @@ interface Props {
   resultGrade?: AttemptResult['grade'] | null;
   worstSegment?: { startIdx: number; endIdx: number } | null;
   perfectBurst?: boolean;
+  portals?: PortalPair[];
   onStrokeStart?: () => void;
   onStrokeEnd?: (path: Point[]) => void;
   onPointAdded?: (count: number) => void;
@@ -67,6 +68,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     resultGrade = null,
     worstSegment = null,
     perfectBurst = false,
+    portals,
     onStrokeStart,
     onStrokeEnd,
   },
@@ -85,6 +87,13 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
   const burstParticlesRef = useRef<
     { x: number; y: number; vx: number; vy: number; life: number; hue: string }[]
   >([]);
+  /** Sum of teleport offsets applied to subsequent stroke points, in canvas pixels. */
+  const teleportOffsetRef = useRef({ dx: 0, dy: 0 });
+  /** Indices into the active portals list that have already been used in this stroke. */
+  const usedPortalsRef = useRef<Set<number>>(new Set());
+  /** Portal animation start, for the live ring pulse. */
+  const portalAnimStartRef = useRef<number>(0);
+  const portalAnimRafRef = useRef<number | null>(null);
 
   useImperativeHandle(ref, () => ({
     reset() {
@@ -92,6 +101,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       rawHistoryRef.current = [];
       drawingRef.current = false;
       onTrackRef.current = false;
+      teleportOffsetRef.current = { dx: 0, dy: 0 };
+      usedPortalsRef.current = new Set();
       cancelBurst();
       redraw();
     },
@@ -110,6 +121,31 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     return () => ro.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Portal pulse animation. Runs when portals exist and not in result mode.
+  useEffect(() => {
+    const hasPortals = portals && portals.length > 0 && !resultMode;
+    if (!hasPortals) {
+      if (portalAnimRafRef.current != null) {
+        cancelAnimationFrame(portalAnimRafRef.current);
+        portalAnimRafRef.current = null;
+      }
+      return;
+    }
+    portalAnimStartRef.current = performance.now();
+    const tick = () => {
+      redraw();
+      portalAnimRafRef.current = requestAnimationFrame(tick);
+    };
+    portalAnimRafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (portalAnimRafRef.current != null) {
+        cancelAnimationFrame(portalAnimRafRef.current);
+        portalAnimRafRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portals, resultMode]);
 
   useEffect(() => {
     redraw();
@@ -150,6 +186,95 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
   function targetCanvasPath(): Point[] {
     const { w, h } = sizeRef.current;
     return scaleNormalizedToCanvas(targetUnitPath, w, h, 36);
+  }
+
+  /** Convert each portal pair from unit coords to canvas pixels matching the
+   *  same scaling used for the target shape. */
+  function portalCanvasPairs(): { entry: Point & { r: number }; exit: Point & { r: number } }[] {
+    if (!portals || portals.length === 0) return [];
+    const { w, h } = sizeRef.current;
+    const padding = 36;
+    const size = Math.min(w, h) - padding * 2;
+    const offsetX = (w - size) / 2;
+    const offsetY = (h - size) / 2;
+    return portals.map((p) => ({
+      entry: {
+        x: offsetX + p.entry.x * size,
+        y: offsetY + p.entry.y * size,
+        r: p.entry.r * size,
+      },
+      exit: {
+        x: offsetX + p.exit.x * size,
+        y: offsetY + p.exit.y * size,
+        r: p.exit.r * size,
+      },
+    }));
+  }
+
+  function drawPortalPair(
+    ctx: CanvasRenderingContext2D,
+    entry: Point & { r: number },
+    exit: Point & { r: number },
+    used: boolean,
+    pulse: number,
+  ) {
+    const drawRing = (
+      cx: number,
+      cy: number,
+      r: number,
+      color: string,
+      thickness: number,
+    ) => {
+      ctx.save();
+      ctx.lineWidth = thickness;
+      // Outer halo
+      ctx.shadowBlur = 22;
+      ctx.shadowColor = color;
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+      // Black sticker outline
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = thickness + 4;
+      ctx.strokeStyle = '#0a0708';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r + 1, 0, Math.PI * 2);
+      ctx.stroke();
+      // Inner ring
+      ctx.lineWidth = thickness;
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+      // Center pip
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+
+    const entryColor = used ? 'rgba(255,255,255,0.35)' : '#3df0ff';
+    const exitColor = used ? 'rgba(255,255,255,0.35)' : '#ff3da4';
+
+    const pulseR = used ? entry.r : entry.r * (1 + 0.08 * Math.sin(pulse * Math.PI * 2));
+    drawRing(entry.x, entry.y, pulseR, entryColor, 3);
+    const pulseR2 = used ? exit.r : exit.r * (1 + 0.08 * Math.sin(pulse * Math.PI * 2 + Math.PI));
+    drawRing(exit.x, exit.y, pulseR2, exitColor, 3);
+
+    // Connection arc (subtle dashed)
+    if (!used) {
+      ctx.save();
+      ctx.setLineDash([6, 8]);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(255, 245, 224, 0.18)';
+      ctx.beginPath();
+      ctx.moveTo(entry.x, entry.y);
+      ctx.lineTo(exit.x, exit.y);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   function redraw() {
@@ -200,6 +325,21 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       }
     }
 
+    // Portals (drawn over everything except the burst)
+    if (portals && portals.length > 0) {
+      const pulse = ((performance.now() - portalAnimStartRef.current) / 1400) % 1;
+      const canvasPairs = portalCanvasPairs();
+      canvasPairs.forEach((pair, idx) => {
+        drawPortalPair(
+          ctx,
+          pair.entry,
+          pair.exit,
+          usedPortalsRef.current.has(idx),
+          pulse,
+        );
+      });
+    }
+
     if (burstParticlesRef.current.length > 0) {
       drawBurst(ctx);
     }
@@ -219,18 +359,33 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
+    // Split into segments on teleport markers so the line lifts at portal jumps.
+    const segments: Point[][] = [];
+    let cur: Point[] = [];
+    for (let i = 0; i < pts.length; i++) {
+      cur.push(pts[i]);
+      if (pts[i].teleport) {
+        if (cur.length >= 2) segments.push(cur);
+        cur = [];
+      }
+    }
+    if (cur.length >= 2) segments.push(cur);
+    if (segments.length === 0) return;
+
     const buildPath = () => {
       ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length - 1; i++) {
-        const a = pts[i];
-        const b = pts[i + 1];
-        const mx = (a.x + b.x) / 2;
-        const my = (a.y + b.y) / 2;
-        ctx.quadraticCurveTo(a.x, a.y, mx, my);
+      for (const seg of segments) {
+        ctx.moveTo(seg[0].x, seg[0].y);
+        for (let i = 1; i < seg.length - 1; i++) {
+          const a = seg[i];
+          const b = seg[i + 1];
+          const mx = (a.x + b.x) / 2;
+          const my = (a.y + b.y) / 2;
+          ctx.quadraticCurveTo(a.x, a.y, mx, my);
+        }
+        const last = seg[seg.length - 1];
+        ctx.lineTo(last.x, last.y);
       }
-      const last = pts[pts.length - 1];
-      ctx.lineTo(last.x, last.y);
     };
 
     // Outer halo
@@ -287,18 +442,32 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
+    const segments: Point[][] = [];
+    let cur: Point[] = [];
+    for (let i = 0; i < pts.length; i++) {
+      cur.push(pts[i]);
+      if (pts[i].teleport) {
+        if (cur.length >= 2) segments.push(cur);
+        cur = [];
+      }
+    }
+    if (cur.length >= 2) segments.push(cur);
+    if (segments.length === 0) return;
+
     const buildPath = () => {
       ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length - 1; i++) {
-        const a = pts[i];
-        const b = pts[i + 1];
-        const mx = (a.x + b.x) / 2;
-        const my = (a.y + b.y) / 2;
-        ctx.quadraticCurveTo(a.x, a.y, mx, my);
+      for (const seg of segments) {
+        ctx.moveTo(seg[0].x, seg[0].y);
+        for (let i = 1; i < seg.length - 1; i++) {
+          const a = seg[i];
+          const b = seg[i + 1];
+          const mx = (a.x + b.x) / 2;
+          const my = (a.y + b.y) / 2;
+          ctx.quadraticCurveTo(a.x, a.y, mx, my);
+        }
+        const last = seg[seg.length - 1];
+        ctx.lineTo(last.x, last.y);
       }
-      const last = pts[pts.length - 1];
-      ctx.lineTo(last.x, last.y);
     };
 
     let minX = Infinity,
@@ -371,11 +540,60 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     return { point: guided.point, onTrack: guided.onTrack };
   }
 
+  /** Apply accumulated portal teleport offset to a canvas-space point. */
+  function applyTeleportOffset(p: Point): Point {
+    return {
+      x: p.x + teleportOffsetRef.current.dx,
+      y: p.y + teleportOffsetRef.current.dy,
+      t: p.t,
+    };
+  }
+
+  /** Detect if the just-added point crosses an unused portal A. If so, mark
+   *  the previous path point as a teleport boundary, expand the offset, and
+   *  return the offset-applied point that should appear at portal B. */
+  function maybeTeleport(point: Point): Point {
+    if (!portals || portals.length === 0) return point;
+    const canvasPairs = portalCanvasPairs();
+    for (let i = 0; i < canvasPairs.length; i++) {
+      if (usedPortalsRef.current.has(i)) continue;
+      const { entry, exit } = canvasPairs[i];
+      const dx = point.x - entry.x;
+      const dy = point.y - entry.y;
+      if (dx * dx + dy * dy <= entry.r * entry.r) {
+        usedPortalsRef.current.add(i);
+        // Mark the LAST point in the path as the pre-teleport boundary so the
+        // line lifts to the exit portal.
+        if (pathRef.current.length > 0) {
+          const last = pathRef.current[pathRef.current.length - 1];
+          pathRef.current[pathRef.current.length - 1] = { ...last, teleport: true };
+        }
+        // The new offset positions subsequent finger movement around exit.
+        const offDx = exit.x - entry.x;
+        const offDy = exit.y - entry.y;
+        teleportOffsetRef.current = {
+          dx: teleportOffsetRef.current.dx + offDx,
+          dy: teleportOffsetRef.current.dy + offDy,
+        };
+        sfx.tap();
+        haptics.tap();
+        return {
+          x: point.x + offDx,
+          y: point.y + offDy,
+          t: point.t,
+        };
+      }
+    }
+    return point;
+  }
+
   function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!enabled || resultMode) return;
     e.preventDefault();
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     drawingRef.current = true;
+    teleportOffsetRef.current = { dx: 0, dy: 0 };
+    usedPortalsRef.current = new Set();
     const raw = localPoint(e.nativeEvent);
     rawHistoryRef.current = [raw];
     const { point, onTrack } = transformIncoming(raw);
@@ -391,13 +609,23 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     if (!enabled || !drawingRef.current || resultMode) return;
     e.preventDefault();
     const raw = localPoint(e.nativeEvent);
-    const lastRaw = rawHistoryRef.current[rawHistoryRef.current.length - 1];
-    if (lastRaw && Math.hypot(raw.x - lastRaw.x, raw.y - lastRaw.y) < 1.2) return;
-    rawHistoryRef.current.push(raw);
+    // Translate raw finger position by accumulated portal offsets to get the
+    // virtual canvas position the line should appear at.
+    const virtualRaw = applyTeleportOffset(raw);
+    const lastVirtual = rawHistoryRef.current[rawHistoryRef.current.length - 1];
+    if (
+      lastVirtual &&
+      Math.hypot(virtualRaw.x - lastVirtual.x, virtualRaw.y - lastVirtual.y) < 1.2
+    )
+      return;
+    rawHistoryRef.current.push(virtualRaw);
     if (rawHistoryRef.current.length > 4) rawHistoryRef.current.shift();
-    const { point, onTrack } = transformIncoming(raw);
+    const { point, onTrack } = transformIncoming(virtualRaw);
     onTrackRef.current = onTrack;
-    pathRef.current.push(point);
+    // Check if this virtual point lands inside an unused portal entry — if so,
+    // mark a line break and shift the offset so subsequent moves appear at exit.
+    const portalAware = maybeTeleport(point);
+    pathRef.current.push(portalAware);
     redraw();
   }
 

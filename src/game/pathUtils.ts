@@ -29,9 +29,27 @@ export function boundingBox(path: Point[]): BBox {
 export function pathLength(path: Point[]): number {
   let total = 0;
   for (let i = 1; i < path.length; i++) {
+    // Skip distance across portal teleports — the previous point is flagged
+    // as a break.
+    if (path[i - 1].teleport) continue;
     total += Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y);
   }
   return total;
+}
+
+/** Split a path into contiguous sub-paths at teleport break points. */
+export function splitOnTeleport(path: Point[]): Point[][] {
+  const out: Point[][] = [];
+  let cur: Point[] = [];
+  for (const p of path) {
+    cur.push(p);
+    if (p.teleport) {
+      if (cur.length >= 2) out.push(cur);
+      cur = [];
+    }
+  }
+  if (cur.length >= 2) out.push(cur);
+  return out;
 }
 
 export function resamplePath(path: Point[], n: number): Point[] {

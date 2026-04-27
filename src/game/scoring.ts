@@ -5,6 +5,7 @@ import {
   normalizeToUnit,
   pathLength,
   resamplePath,
+  splitOnTeleport,
 } from './pathUtils';
 import { isClosedShape } from './shapes';
 
@@ -83,7 +84,18 @@ export function scoreShape(
 ): number {
   if (playerPath.length < 4) return 0;
 
-  const playerNorm = normalizeToUnit(playerPath);
+  // Strip teleport markers AND collapse sub-paths into one continuous polyline
+  // for resampling purposes (the gap between entry and exit is omitted).
+  const subPaths = splitOnTeleport(playerPath);
+  const flatPath: Point[] =
+    subPaths.length > 1
+      ? subPaths.reduce<Point[]>((acc, seg) => {
+          for (const p of seg) acc.push({ x: p.x, y: p.y, t: p.t });
+          return acc;
+        }, [])
+      : playerPath.map((p) => ({ x: p.x, y: p.y, t: p.t }));
+
+  const playerNorm = normalizeToUnit(flatPath);
   const playerSampled = resamplePath(playerNorm, RESAMPLE_N);
   const targetSampled = resamplePath(targetUnitPath, RESAMPLE_N);
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import DrawingCanvas, { type DrawingCanvasHandle } from './DrawingCanvas';
 import TutorialHint from './TutorialHint';
 import InlineResultOverlay from './InlineResultOverlay';
+import PortalTutorial, { getPortalTutorialSeen } from './PortalTutorial';
 import type { AttemptResult, Point } from '../game/types';
 import { isClosedShape, shapeDisplayName } from '../game/shapes';
 import { haptics } from '../game/haptics';
@@ -76,6 +77,17 @@ export default function ChallengeScreen({
   const [perfectFreeze, setPerfectFreeze] = useState(false);
   const [missFlicker, setMissFlicker] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  const challengePortals = (challenge as { portals?: import('../game/types').PortalPair[] })
+    .portals;
+  const [showPortalTutorial, setShowPortalTutorial] = useState(false);
+  useEffect(() => {
+    if (challengePortals && challengePortals.length > 0 && !getPortalTutorialSeen()) {
+      setShowPortalTutorial(true);
+    } else {
+      setShowPortalTutorial(false);
+    }
+  }, [challenge.id, challengePortals]);
 
   const accent = accentFor(challenge.shape);
 
@@ -289,6 +301,7 @@ export default function ChallengeScreen({
           accentSoft={accent.soft}
           assistEnabled={assistEnabled}
           assistStrength={assistStrength}
+          portals={(challenge as { portals?: import('../game/types').PortalPair[] }).portals}
           resultMode={phase === 'result'}
           resultPath={result ? result.playerPath : null}
           resultGrade={result ? result.grade : null}
@@ -316,6 +329,10 @@ export default function ChallengeScreen({
           targetTime={target}
           variant="intro"
           onDismiss={onDismissIntro}
+        />
+        <PortalTutorial
+          show={showPortalTutorial}
+          onDismiss={() => setShowPortalTutorial(false)}
         />
 
         {phase !== 'result' && (

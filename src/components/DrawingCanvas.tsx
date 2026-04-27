@@ -165,14 +165,18 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     const guideHex = '#bcd9ff';
 
     if (resultMode && resultPath && resultPath.length > 1) {
-      drawNeonPath(ctx, tCanvas, guideHex, 4, Math.min(0.85, guideOpacity * 1.6) * 0.9);
+      drawNeonPath(ctx, tCanvas, guideHex, 4, Math.min(0.85, guideOpacity * 1.6) * 0.9, false);
 
       const playerNorm = normalizeToUnit(resultPath);
       const playerCanvas = scaleNormalizedToCanvas(playerNorm, w, h, 36);
       const isPerfect = resultGrade === 'Perfect';
       const isElite = resultGrade === 'Elite';
-      const baseColor = isPerfect || isElite ? '#ffd56b' : accentColor;
-      drawNeonPath(ctx, playerCanvas, baseColor, 7, 1);
+      if (isPerfect) {
+        drawRainbowStickerPath(ctx, playerCanvas, 9);
+      } else {
+        const baseColor = isElite ? '#ffe83d' : accentColor;
+        drawNeonPath(ctx, playerCanvas, baseColor, 8, 1, true);
+      }
 
       if (
         worstSegment &&
@@ -183,14 +187,14 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
           worstSegment.startIdx,
           worstSegment.endIdx + 1,
         );
-        drawNeonPath(ctx, slice, '#ff7a3d', 11, 1);
+        drawNeonPath(ctx, slice, '#ff3da4', 12, 1, true);
       }
     } else {
-      drawNeonPath(ctx, tCanvas, guideHex, 5, guideOpacity);
+      drawNeonPath(ctx, tCanvas, guideHex, 5, guideOpacity, false);
 
       if (pathRef.current.length > 1) {
-        const intensity = onTrackRef.current ? 1.15 : 1.0;
-        drawNeonPath(ctx, pathRef.current, accentColor, 8, intensity);
+        const intensity = onTrackRef.current ? 1.18 : 1.0;
+        drawNeonPath(ctx, pathRef.current, accentColor, 9, intensity, true);
       }
     }
 
@@ -207,6 +211,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     hex: string,
     coreWidth: number,
     intensity: number,
+    sticker: boolean,
   ) {
     if (pts.length < 2) return;
     ctx.lineCap = 'round';
@@ -228,8 +233,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
 
     // Outer halo
     ctx.shadowBlur = 38;
-    ctx.shadowColor = rgba(hex, 0.8 * intensity);
-    ctx.strokeStyle = rgba(hex, 0.32 * intensity);
+    ctx.shadowColor = rgba(hex, 0.85 * intensity);
+    ctx.strokeStyle = rgba(hex, 0.34 * intensity);
     ctx.lineWidth = coreWidth * 4.5;
     buildPath();
     ctx.stroke();
@@ -237,20 +242,108 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     // Mid glow
     ctx.shadowBlur = 18;
     ctx.shadowColor = rgba(hex, 1 * intensity);
-    ctx.strokeStyle = rgba(hex, 0.7 * intensity);
+    ctx.strokeStyle = rgba(hex, 0.72 * intensity);
     ctx.lineWidth = coreWidth * 2;
     buildPath();
     ctx.stroke();
 
-    // Inner core (white-tinted for that hot-neon look)
-    ctx.shadowBlur = 6;
-    ctx.shadowColor = rgba(hex, 0.95 * intensity);
-    ctx.strokeStyle = tintTowardWhite(hex, 0.55);
+    if (sticker) {
+      // Black sticker outline
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#0a0708';
+      ctx.lineWidth = coreWidth + 6;
+      buildPath();
+      ctx.stroke();
+    }
+
+    // Saturated color core
+    ctx.shadowBlur = sticker ? 4 : 6;
+    ctx.shadowColor = rgba(hex, 0.85 * intensity);
+    ctx.strokeStyle = hex;
     ctx.lineWidth = coreWidth;
     buildPath();
     ctx.stroke();
 
+    if (sticker) {
+      // White-tinted highlight on top for that hot-sticker shine
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = tintTowardWhite(hex, 0.7);
+      ctx.lineWidth = Math.max(2, coreWidth * 0.3);
+      buildPath();
+      ctx.stroke();
+    }
+
     ctx.shadowBlur = 0;
+  }
+
+  function drawRainbowStickerPath(
+    ctx: CanvasRenderingContext2D,
+    pts: Point[],
+    coreWidth: number,
+  ) {
+    if (pts.length < 2) return;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const buildPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length - 1; i++) {
+        const a = pts[i];
+        const b = pts[i + 1];
+        const mx = (a.x + b.x) / 2;
+        const my = (a.y + b.y) / 2;
+        ctx.quadraticCurveTo(a.x, a.y, mx, my);
+      }
+      const last = pts[pts.length - 1];
+      ctx.lineTo(last.x, last.y);
+    };
+
+    let minX = Infinity,
+      maxX = -Infinity;
+    for (const p of pts) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+    }
+    const grad = ctx.createLinearGradient(minX, 0, maxX, 0);
+    grad.addColorStop(0, '#ff3da4');
+    grad.addColorStop(0.18, '#ff7a3d');
+    grad.addColorStop(0.35, '#ffe83d');
+    grad.addColorStop(0.55, '#a4ff3d');
+    grad.addColorStop(0.75, '#3df0ff');
+    grad.addColorStop(1, '#a44dff');
+
+    // Mid halo (multicolor blur)
+    ctx.shadowBlur = 32;
+    ctx.shadowColor = 'rgba(255, 232, 61, 0.8)';
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = coreWidth * 3.5;
+    ctx.globalAlpha = 0.45;
+    buildPath();
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Black sticker outline
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#0a0708';
+    ctx.lineWidth = coreWidth + 7;
+    buildPath();
+    ctx.stroke();
+
+    // Rainbow gradient core
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.7)';
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = coreWidth;
+    buildPath();
+    ctx.stroke();
+
+    // White highlight stripe
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = Math.max(2, coreWidth * 0.28);
+    buildPath();
+    ctx.stroke();
   }
 
   function localPoint(e: PointerEvent): Point {
@@ -333,8 +426,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     const playerNorm = normalizeToUnit(resultPath);
     const playerCanvas = scaleNormalizedToCanvas(playerNorm, w, h, 36);
     const particles: typeof burstParticlesRef.current = [];
-    const count = 48;
-    const palette = ['#ffd56b', '#fff1b8', accentColor];
+    const count = 72;
+    const palette = ['#ff3da4', '#ff7a3d', '#ffe83d', '#a4ff3d', '#3df0ff', '#a44dff', '#fff5e0'];
     for (let i = 0; i < count; i++) {
       const idx = Math.floor((i / count) * playerCanvas.length);
       const p = playerCanvas[Math.min(playerCanvas.length - 1, idx)];

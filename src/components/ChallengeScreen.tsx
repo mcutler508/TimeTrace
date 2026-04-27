@@ -203,50 +203,50 @@ export default function ChallengeScreen({
               haptics.micro();
               onHome();
             }}
-            className="rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.32em] bg-white/10 text-white/75 border border-white/15 active:scale-95"
+            className="btn-sticker-sm px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] font-poster bg-splat-paper text-splat-black"
             aria-label="Back to home"
           >
-            ← Home
+            ← HOME
           </button>
         ) : (
-          <div className="w-[72px]" />
+          <div className="w-[78px]" />
         )}
         <div className="flex-1 text-center">
-          <div className="text-[10px] uppercase tracking-[0.32em] text-white/45">
-            {challenge.difficulty}
+          <div className="text-poster text-[10px] tracking-[0.32em] text-splat-yellow">
+            {challenge.difficulty.toUpperCase()}
           </div>
           <h1
-            className="font-display text-xl font-bold leading-tight"
-            style={{ color: accent.stroke, textShadow: `0 0 18px ${accent.soft}` }}
+            className="text-poster text-2xl leading-none mt-0.5 text-sticker"
+            style={{ color: accent.stroke }}
           >
-            {shapeDisplayName(challenge.shape)}
+            {shapeDisplayName(challenge.shape).toUpperCase()}
           </h1>
         </div>
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-[0.32em] text-white/45">Target</div>
-          <div className="font-mono text-xl text-white tabular-nums">
+        <div className="card-sticker px-3 py-2 -rotate-2">
+          <div className="text-[9px] uppercase tracking-[0.28em] text-splat-yellow font-bold leading-none">Target</div>
+          <div className="font-poster text-lg text-splat-paper tabular-nums leading-none mt-1">
             {target.toFixed(2)}s
           </div>
         </div>
       </header>
 
-      <div className="flex items-center justify-between text-xs text-white/55">
-        <span>
+      <div className="flex items-center justify-between text-xs text-splat-paper/65 px-1">
+        <span className="font-poster text-[11px] tracking-[0.18em]">
           Best:{' '}
-          <span className="text-white/85 font-semibold tabular-nums">
+          <span className="text-splat-paper tabular-nums">
             {bestScore != null ? bestScore : '—'}
           </span>
         </span>
         {inPerfectLock && (
-          <span className="text-[10px] uppercase tracking-[0.5em] text-ink-gold text-glow-gold animate-fadeIn">
-            You're close
+          <span className="text-poster text-[10px] tracking-[0.4em] text-splat-yellow text-glow-gold animate-fadeIn">
+            YOU'RE CLOSE
           </span>
         )}
-        <span>
+        <span className="font-poster text-[11px] tracking-[0.18em]">
           Streak:{' '}
           <span
-            className={`font-semibold tabular-nums ${
-              inPerfectLock ? 'text-ink-gold text-glow-gold text-base' : 'text-ink-gold'
+            className={`tabular-nums ${
+              inPerfectLock ? 'text-splat-yellow text-glow-gold text-base' : 'text-splat-yellow'
             }`}
           >
             {streak}
@@ -256,17 +256,15 @@ export default function ChallengeScreen({
 
       <div
         ref={wrapRef}
-        className={`canvas-frame card-hero relative rounded-3xl overflow-hidden p-2 transition-shadow duration-200 ${
-          phase === 'armed'
-            ? 'ring-2 shadow-[0_0_42px_-4px_rgba(0,240,255,0.35)]'
-            : ''
+        className={`canvas-frame relative overflow-hidden p-2 transition-all duration-200 ${
+          phase === 'armed' ? '' : ''
         }`}
         style={
           phase === 'armed'
             ? ({
-                ['--tw-ring-color' as string]: inPerfectLock
-                  ? 'rgba(255,213,107,0.55)'
-                  : accent.soft,
+                boxShadow: `8px 8px 0 0 #0a0708, 0 0 0 1px rgba(255,255,255,0.08) inset, 0 0 38px -2px ${
+                  inPerfectLock ? 'rgba(255,232,61,0.55)' : accent.soft
+                }`,
               } as React.CSSProperties)
             : undefined
         }
@@ -313,7 +311,7 @@ export default function ChallengeScreen({
         {phase !== 'result' && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2">
             <div
-              className={`font-mono text-xl tabular-nums px-4 py-1 rounded-full bg-black/55 border border-white/15 backdrop-blur-md ${
+              className={`font-poster text-xl tabular-nums px-4 py-1 rounded-full bg-splat-black border-2 border-splat-paper/40 ${
                 warmth > 0.4 ? 'timer-pulse' : ''
               }`}
               style={timerColorStyle}
@@ -342,10 +340,10 @@ export default function ChallengeScreen({
           warmth={warmth}
           timeDelta={result?.timeDelta ?? null}
         />
-        <div className="text-center text-[10px] uppercase tracking-[0.4em] text-white/45 mt-2 animate-fadeIn">
-          {phase === 'armed' && 'Touch the shape · Lift to stop'}
-          {phase === 'running' && 'Hold for the perfect moment'}
-          {phase === 'result' && 'Retry · Next'}
+        <div className="text-poster text-center text-[10px] tracking-[0.32em] text-splat-paper/55 mt-2 animate-fadeIn">
+          {phase === 'armed' && 'TOUCH SHAPE · LIFT TO STOP'}
+          {phase === 'running' && 'HOLD FOR THE PERFECT MOMENT'}
+          {phase === 'result' && 'RETRY · NEXT'}
         </div>
       </div>
     </div>
@@ -367,8 +365,8 @@ function TimingBar({
   const fillPct = Math.min(100, (progress / 1.4) * 100);
   const isWarm = warmth > 0.4;
   const fillColor = isWarm
-    ? 'linear-gradient(90deg, rgba(0,240,255,0.5), rgba(255,213,107,0.95))'
-    : 'linear-gradient(90deg, rgba(0,240,255,0.6), rgba(0,240,255,1))';
+    ? 'linear-gradient(90deg, #3df0ff 0%, #a4ff3d 40%, #ffe83d 70%, #ff7a3d 100%)'
+    : 'linear-gradient(90deg, #3df0ff 0%, #a44dff 100%)';
 
   const deltaPos =
     phase === 'result' && timeDelta != null
@@ -376,27 +374,27 @@ function TimingBar({
       : null;
 
   return (
-    <div className="relative h-1.5 w-full rounded-full bg-white/8 overflow-hidden">
+    <div className="relative h-2.5 w-full rounded-full bg-splat-black border-2 border-splat-paper/30 overflow-hidden">
       <div
         className="absolute inset-y-0 left-0 transition-[width] duration-75"
         style={{
           width: `${fillPct}%`,
           background: fillColor,
           boxShadow: isWarm
-            ? '0 0 18px rgba(255, 213, 107, 0.7)'
-            : '0 0 12px rgba(0, 240, 255, 0.5)',
+            ? '0 0 18px rgba(255, 232, 61, 0.85)'
+            : '0 0 12px rgba(61, 240, 255, 0.55)',
         }}
       />
       <div
-        className="absolute top-1/2 -translate-y-1/2 w-0.5 h-3 bg-white/85 rounded-full"
-        style={{ left: targetMarkPos, boxShadow: '0 0 8px rgba(255,255,255,0.6)' }}
+        className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-splat-paper rounded-full"
+        style={{ left: targetMarkPos, boxShadow: '0 0 8px rgba(255,245,224,0.75)' }}
       />
       {deltaPos != null && (
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-ink-gold animate-fadeIn"
+          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-splat-yellow border-2 border-splat-black animate-fadeIn"
           style={{
             left: `${deltaPos}%`,
-            boxShadow: '0 0 12px rgba(255, 213, 107, 0.85)',
+            boxShadow: '0 0 12px rgba(255, 232, 61, 0.85)',
           }}
         />
       )}

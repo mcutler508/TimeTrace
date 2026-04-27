@@ -10,17 +10,25 @@ interface Props {
   onNext: () => void;
 }
 
-const GRADE_COLOR: Record<AttemptResult['grade'], string> = {
-  Perfect: 'text-ink-gold text-chromatic',
-  Elite: 'text-ink-cyan text-glow-cyan',
-  Great: 'text-ink-cyan',
-  Close: 'text-white/85',
-  Miss: 'text-ink-rose',
+const GRADE_TEXT: Record<AttemptResult['grade'], string> = {
+  Perfect: 'text-rainbow',
+  Elite: 'text-splat-yellow text-glow-gold',
+  Great: 'text-splat-cyan text-glow-cyan',
+  Close: 'text-splat-paper',
+  Miss: 'text-splat-pink text-glow-pink',
+};
+
+const GRADE_BG: Record<AttemptResult['grade'], string> = {
+  Perfect: 'bg-splat-yellow text-splat-black',
+  Elite: 'bg-splat-cyan text-splat-black',
+  Great: 'bg-splat-lime text-splat-black',
+  Close: 'bg-splat-paper text-splat-black',
+  Miss: 'bg-splat-pink text-splat-paper',
 };
 
 const GRADE_RING: Record<AttemptResult['grade'], string | null> = {
-  Perfect: '#ffd56b',
-  Elite: '#00f0ff',
+  Perfect: '#ffe83d',
+  Elite: '#3df0ff',
   Great: null,
   Close: null,
   Miss: null,
@@ -36,7 +44,7 @@ export default function InlineResultOverlay({
 }: Props) {
   const deltaSign = result.timeDelta >= 0 ? '+' : '−';
   const deltaAbs = Math.abs(result.timeDelta).toFixed(2);
-  const deltaTone = Math.abs(result.timeDelta) < 0.1 ? 'text-ink-gold' : 'text-white/70';
+  const deltaTone = Math.abs(result.timeDelta) < 0.1 ? 'text-splat-yellow' : 'text-splat-paper/75';
   const ringColor = GRADE_RING[result.grade];
 
   return (
@@ -45,19 +53,19 @@ export default function InlineResultOverlay({
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse at center, rgba(0,0,0,0) 25%, rgba(6,6,26,0.7) 100%)',
+            'radial-gradient(ellipse at center, rgba(0,0,0,0) 22%, rgba(6,6,26,0.8) 100%)',
         }}
       />
 
-      <div className="relative flex items-start justify-between">
+      <div className="relative flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1.5 pointer-events-auto">
           {isNewBest && pointsEarned > 0 && (
-            <span className="px-2.5 py-1 rounded-full text-[10px] uppercase tracking-[0.24em] bg-ink-gold/15 text-ink-gold border border-ink-gold/40 shadow-glow-gold">
-              New best · +{pointsEarned} pts
+            <span className="px-3 py-1 rounded-full text-[10px] uppercase tracking-[0.22em] font-poster bg-splat-yellow text-splat-black border-2 border-black -rotate-2 shadow-[3px_3px_0_0_#0a0708]">
+              New best · +{pointsEarned}
             </span>
           )}
           {unlockedTitle && (
-            <span className="px-2.5 py-1 rounded-full text-[10px] uppercase tracking-[0.24em] bg-ink-cyan/15 text-ink-cyan border border-ink-cyan/40 shadow-glow-cyan">
+            <span className="px-3 py-1 rounded-full text-[10px] uppercase tracking-[0.22em] font-poster bg-splat-cyan text-splat-black border-2 border-black rotate-2 shadow-[3px_3px_0_0_#0a0708]">
               Unlocked · {unlockedTitle}
             </span>
           )}
@@ -73,12 +81,12 @@ export default function InlineResultOverlay({
               <circle
                 cx="60"
                 cy="60"
-                r="55"
+                r="56"
                 fill="none"
                 stroke={ringColor}
-                strokeOpacity="0.45"
-                strokeWidth="1.5"
-                strokeDasharray="4 8"
+                strokeOpacity="0.6"
+                strokeWidth="3"
+                strokeDasharray="6 8"
               />
               <circle
                 cx="60"
@@ -86,61 +94,55 @@ export default function InlineResultOverlay({
                 r="48"
                 fill="none"
                 stroke={ringColor}
-                strokeOpacity="0.18"
-                strokeWidth="1"
+                strokeOpacity="0.25"
+                strokeWidth="1.5"
               />
             </svg>
           )}
           <div
-            className={`relative font-display font-bold text-[3.5rem] tabular-nums leading-[0.95] ${
-              GRADE_COLOR[result.grade]
+            className={`relative font-poster text-[4rem] tabular-nums leading-[0.9] text-sticker-lg ${
+              GRADE_TEXT[result.grade]
             } animate-scorePop`}
           >
             {result.finalScore}
           </div>
           <div
-            className={`relative mt-1 px-2.5 py-0.5 inline-block rounded-full text-[10px] font-semibold tracking-[0.32em] uppercase border ${
-              result.grade === 'Perfect'
-                ? 'border-ink-gold/60 text-ink-gold'
-                : result.grade === 'Elite'
-                ? 'border-ink-cyan/60 text-ink-cyan'
-                : result.grade === 'Miss'
-                ? 'border-ink-rose/60 text-ink-rose'
-                : 'border-white/30 text-white/85'
+            className={`relative mt-2 px-3 py-1 inline-block rounded-full text-[11px] tracking-[0.28em] font-poster border-2 border-black -rotate-3 shadow-[3px_3px_0_0_#0a0708] ${
+              GRADE_BG[result.grade]
             }`}
           >
-            {result.grade}
+            {result.grade.toUpperCase()}
           </div>
         </div>
       </div>
 
       <div className="relative flex flex-col gap-3 pointer-events-auto">
-        <div className="flex items-center justify-between text-[11px] font-mono tabular-nums">
-          <span className="text-ink-cyan/85">SHAPE {result.shapeScore}</span>
+        <div className="flex items-center justify-between text-[11px] font-poster tabular-nums">
+          <span className="text-splat-cyan text-glow-cyan">SHAPE {result.shapeScore}</span>
           <span className={deltaTone}>
             {deltaSign}
             {deltaAbs}s
           </span>
-          <span className="text-ink-gold/85">TIMING {result.timingScore}</span>
+          <span className="text-splat-yellow text-glow-gold">TIMING {result.timingScore}</span>
         </div>
-        <div className="grid grid-cols-[2fr_1fr] gap-2">
+        <div className="grid grid-cols-[2fr_1fr] gap-3">
           <button
             onClick={() => {
               haptics.micro();
               onRetry();
             }}
-            className="btn-3d py-3.5 text-sm uppercase tracking-[0.32em] bg-gradient-to-b from-ink-cyan/95 to-cyan-500/80 text-bg-deep shadow-glow-cyan"
+            className="btn-sticker py-3.5 text-poster text-base tracking-[0.18em] bg-splat-yellow text-splat-black"
           >
-            Retry
+            RETRY
           </button>
           <button
             onClick={() => {
               haptics.micro();
               onNext();
             }}
-            className="btn-3d py-3.5 text-sm uppercase tracking-[0.32em] bg-white/10 text-white border border-white/15"
+            className="btn-sticker py-3.5 text-poster text-base tracking-[0.18em] bg-splat-cyan text-splat-black"
           >
-            Next
+            NEXT
           </button>
         </div>
       </div>

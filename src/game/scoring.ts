@@ -49,7 +49,7 @@ export function scoreAttempt({
 const RESAMPLE_N = 64;
 
 export function timingScore(actualTime: number, targetTime: number): number {
-  return Math.max(0, 100 - Math.abs(actualTime - targetTime) * 40);
+  return Math.max(0, 100 - Math.abs(actualTime - targetTime) * 32);
 }
 
 export function scoreShape(
@@ -93,7 +93,7 @@ export function scoreShape(
     avgDist = Math.min(sumFwd, sumRev) / RESAMPLE_N;
   }
 
-  let score = Math.max(0, 100 - avgDist * 360);
+  let score = Math.max(0, 100 - avgDist * 220);
 
   const playerLen = pathLength(playerPath);
   const playerBB = boundingBox(playerPath);
@@ -101,16 +101,16 @@ export function scoreShape(
 
   const playerSize = Math.max(playerBB.width, playerBB.height);
   if (playerSize < 60) {
-    score *= Math.max(0.4, playerSize / 60);
+    score *= Math.max(0.55, playerSize / 60);
   }
 
   const expectedRel = targetLen;
   const playerRel = playerLen / Math.max(playerSize, 1);
   const lenRatio = playerRel / Math.max(expectedRel, 0.0001);
-  if (lenRatio < 0.55) {
-    score *= 0.55 + lenRatio * 0.45;
-  } else if (lenRatio > 2.2) {
-    score *= Math.max(0.6, 2.2 / lenRatio);
+  if (lenRatio < 0.5) {
+    score *= 0.7 + lenRatio * 0.6;
+  } else if (lenRatio > 2.4) {
+    score *= Math.max(0.75, 2.4 / lenRatio);
   }
 
   if (closed) {
@@ -118,8 +118,8 @@ export function scoreShape(
     const end = playerPath[playerPath.length - 1];
     const closureDist = Math.hypot(end.x - start.x, end.y - start.y);
     const closureRel = closureDist / Math.max(playerSize, 1);
-    if (closureRel > 0.18) {
-      score *= Math.max(0.7, 1 - (closureRel - 0.18) * 1.6);
+    if (closureRel > 0.22) {
+      score *= Math.max(0.85, 1 - (closureRel - 0.22) * 1.0);
     }
   }
 
@@ -144,8 +144,8 @@ export function scoreShape(
   }
   const avgTurn = jagN > 0 ? jagSum / jagN : 0;
   const expectedTurn = closed ? (Math.PI * 2) / RESAMPLE_N : Math.PI / RESAMPLE_N;
-  if (avgTurn > expectedTurn * 6) {
-    score *= 0.85;
+  if (avgTurn > expectedTurn * 8) {
+    score *= 0.92;
   }
 
   return Math.round(Math.max(0, Math.min(100, score)));
@@ -166,7 +166,7 @@ export function gradeFor(finalScore: number): Grade {
 export function applyTutorialBias(result: AttemptResult): AttemptResult {
   const biased = Math.min(
     100,
-    Math.round(result.finalScore + Math.max(8, (100 - result.finalScore) * 0.18)),
+    Math.round(result.finalScore + Math.max(14, (100 - result.finalScore) * 0.32)),
   );
   return {
     ...result,

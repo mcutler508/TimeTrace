@@ -2,12 +2,12 @@ import type { Point } from './types';
 
 export const ASSIST_TUNING = {
   smoothingAlphaBase: 0.55,
-  guidanceThresholdPx: 14,
-  guidanceStrengthBase: 0.18,
-  closureThresholdPx: 22,
+  guidanceThresholdPx: 18,
+  guidanceStrengthBase: 0.22,
+  closureThresholdPx: 28,
   closureMinPathPx: 88,
-  taperFloor: 0.4,
-  taperPerAttempt: 0.1,
+  taperFloor: 0.6,
+  taperPerAttempt: 0.07,
 };
 
 export function assistStrengthForAttempt(attemptCount: number): number {

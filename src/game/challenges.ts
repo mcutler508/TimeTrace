@@ -41,7 +41,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 2.5,
     guideOpacity: 0.4,
     difficulty: 'easy',
-    unlockThreshold: 60,
+    unlockThreshold: 45,
     title: 'Quick Loop',
   },
   {
@@ -50,7 +50,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 3.5,
     guideOpacity: 0.4,
     difficulty: 'easy',
-    unlockThreshold: 150,
+    unlockThreshold: 110,
     title: 'Four Corners',
   },
   {
@@ -59,7 +59,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 4.0,
     guideOpacity: 0.35,
     difficulty: 'medium',
-    unlockThreshold: 280,
+    unlockThreshold: 200,
     title: 'Tri Force',
   },
   {
@@ -68,7 +68,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 5.0,
     guideOpacity: 0.32,
     difficulty: 'medium',
-    unlockThreshold: 450,
+    unlockThreshold: 320,
     title: 'Five-Point',
   },
   {
@@ -77,7 +77,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 6.0,
     guideOpacity: 0.3,
     difficulty: 'hard',
-    unlockThreshold: 660,
+    unlockThreshold: 460,
     title: 'Inward Bound',
   },
 ];

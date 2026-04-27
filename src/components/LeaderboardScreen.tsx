@@ -62,10 +62,48 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerId]);
 
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = `TT · status=${status} · entries=${entries.length} · meRank=${
+        meRank ?? 'null'
+      }`;
+    }
+    // eslint-disable-next-line no-console
+    console.log('[leaderboard render]', {
+      status,
+      entriesLength: entries.length,
+      meRank,
+      ids: entries.map((e) => e.id),
+      names: entries.map((e) => e.name),
+    });
+  });
+
   const meInTopList = meRank != null && meRank <= entries.length;
 
   return (
-    <div className="flex flex-col flex-1 w-full max-w-md mx-auto px-5 pt-7 pb-6 gap-5 overflow-y-auto">
+    <>
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 9999,
+          background: '#ff0044',
+          color: '#fff',
+          fontFamily: 'system-ui, sans-serif',
+          fontWeight: 800,
+          fontSize: 12,
+          padding: '6px 10px',
+          textAlign: 'center',
+          letterSpacing: '0.05em',
+        }}
+      >
+        DEBUG · status={status} · entries={entries.length} · meRank=
+        {meRank ?? 'null'} · names=[
+        {entries.map((e) => e.name).join(', ') || 'EMPTY'}]
+      </div>
+    <div className="flex flex-col flex-1 w-full max-w-md mx-auto px-5 pt-7 pb-6 gap-5 overflow-y-auto" style={{ paddingTop: 50 }}>
       <header className="flex items-center justify-between gap-3">
         <button
           onClick={() => {
@@ -260,5 +298,6 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
         </div>
       )}
     </div>
+    </>
   );
 }

@@ -41,6 +41,8 @@ export interface AttemptResult {
 }
 
 export interface SavedGameState {
+  playerId: string;
+  playerName: string;
   hasCompletedTutorial: boolean;
   tutorialAttempts: number;
   currentChallengeIndex: number;

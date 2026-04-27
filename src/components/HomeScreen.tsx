@@ -7,6 +7,7 @@ import {
 import type { AttemptResult } from '../game/types';
 import ShapePreview from './ShapePreview';
 import HowItWorks from './HowItWorks';
+import NameEntryScreen from './NameEntryScreen';
 import {
   getHapticsEnabled,
   haptics,
@@ -18,8 +19,11 @@ interface Props {
   totalPoints: number;
   bestScores: Record<string, AttemptResult>;
   streak: number;
+  playerName: string;
   onPickChallenge: (challengeId: string) => void;
   onResetAll?: () => void;
+  onOpenLeaderboard?: () => void;
+  onEditName?: (name: string) => void;
 }
 
 const TILE_TILTS = ['-rotate-1', 'rotate-1', '-rotate-[2deg]', 'rotate-[2deg]', '-rotate-1', 'rotate-1'];
@@ -28,18 +32,38 @@ export default function HomeScreen({
   totalPoints,
   bestScores,
   streak,
+  playerName,
   onPickChallenge,
   onResetAll,
+  onOpenLeaderboard,
+  onEditName,
 }: Props) {
   const { next, needed } = pointsToNextUnlock(totalPoints);
   const hapticsSupported = isHapticsSupported();
   const [hapticsOn, setHapticsOn] = useState(getHapticsEnabled());
+  const [editingName, setEditingName] = useState(false);
 
   function toggleHaptics() {
     const v = !hapticsOn;
     setHapticsOn(v);
     setHapticsEnabled(v);
     if (v) haptics.tap();
+  }
+
+  function handleSaveName(name: string) {
+    setEditingName(false);
+    onEditName?.(name);
+  }
+
+  if (editingName) {
+    return (
+      <NameEntryScreen
+        initialName={playerName}
+        mode="edit"
+        onSubmit={handleSaveName}
+        onCancel={() => setEditingName(false)}
+      />
+    );
   }
 
   return (
@@ -60,6 +84,49 @@ export default function HomeScreen({
           </div>
         </div>
       </header>
+
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => {
+            haptics.tap();
+            setEditingName(true);
+          }}
+          className="card-sticker px-3 py-2 flex items-center gap-2 -rotate-1 active:translate-x-[2px] active:translate-y-[2px]"
+          aria-label="Edit your handle"
+        >
+          <span className="text-poster text-[9px] tracking-[0.28em] text-splat-yellow">
+            HANDLE
+          </span>
+          <span className="text-poster text-sm text-splat-paper text-sticker truncate max-w-[8rem]">
+            {playerName || 'NO NAME'}
+          </span>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#ffe83d"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+          </svg>
+        </button>
+        {onOpenLeaderboard && (
+          <button
+            onClick={() => {
+              haptics.tap();
+              onOpenLeaderboard();
+            }}
+            className="btn-sticker-sm px-3 py-2 text-poster text-[10px] tracking-[0.22em] bg-splat-pink text-splat-paper ml-auto"
+          >
+            LEADERBOARD →
+          </button>
+        )}
+      </div>
 
       <div className="card-sticker-paper px-4 py-4 flex items-center justify-between gap-3 rotate-[-0.6deg]">
         <div>

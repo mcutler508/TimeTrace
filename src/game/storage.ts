@@ -2,25 +2,45 @@ import type { SavedGameState } from './types';
 
 const KEY = 'timetrace-state-v1';
 
-const DEFAULT_STATE: SavedGameState = {
-  hasCompletedTutorial: false,
-  tutorialAttempts: 0,
-  currentChallengeIndex: 0,
-  bestScoresByChallenge: {},
-  previousAttemptByChallenge: {},
-  attemptCountByChallenge: {},
-  currentStreak: 0,
-};
+function generateUuid(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  // RFC 4122 v4 fallback
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+function makeDefaultState(): SavedGameState {
+  return {
+    playerId: generateUuid(),
+    playerName: '',
+    hasCompletedTutorial: false,
+    tutorialAttempts: 0,
+    currentChallengeIndex: 0,
+    bestScoresByChallenge: {},
+    previousAttemptByChallenge: {},
+    attemptCountByChallenge: {},
+    currentStreak: 0,
+  };
+}
 
 export function loadState(): SavedGameState {
-  if (typeof window === 'undefined') return { ...DEFAULT_STATE };
+  if (typeof window === 'undefined') return makeDefaultState();
   try {
     const raw = window.localStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULT_STATE };
+    if (!raw) return makeDefaultState();
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_STATE, ...parsed };
+    const merged: SavedGameState = { ...makeDefaultState(), ...parsed };
+    // Ensure playerId is always present even if older save lacks it.
+    if (!merged.playerId) merged.playerId = generateUuid();
+    if (typeof merged.playerName !== 'string') merged.playerName = '';
+    return merged;
   } catch {
-    return { ...DEFAULT_STATE };
+    return makeDefaultState();
   }
 }
 
@@ -39,7 +59,7 @@ export function saveState(state: SavedGameState) {
 }
 
 export function defaultState(): SavedGameState {
-  return { ...DEFAULT_STATE };
+  return makeDefaultState();
 }
 
 export function resetState(): SavedGameState {
@@ -50,5 +70,5 @@ export function resetState(): SavedGameState {
       /* noop */
     }
   }
-  return { ...DEFAULT_STATE };
+  return makeDefaultState();
 }

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ChallengeScreen, { type SubmitMeta } from './components/ChallengeScreen';
 import HomeScreen from './components/HomeScreen';
+import LeaderboardScreen from './components/LeaderboardScreen';
+import NameEntryScreen from './components/NameEntryScreen';
 import {
   CHALLENGES,
   TUTORIAL_CHALLENGE,
@@ -15,16 +17,29 @@ import { generateShapePath } from './game/shapes';
 import { scoreAttempt as runScoreAttempt } from './game/scoring';
 import { loadState, resetState, saveState } from './game/storage';
 import { assistStrengthForAttempt } from './game/assist';
+import { submitScore, updateName } from './game/leaderboard';
 import type { AttemptResult, Point, SavedGameState } from './game/types';
 
-type View = 'home' | 'play';
+type View = 'name' | 'home' | 'play' | 'leaderboard';
 
 const TUTORIAL_HINT_LIMIT = 2;
+
+function buildLevelScoresMap(
+  bests: Record<string, AttemptResult>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const c of CHALLENGES) {
+    const b = bests[c.id];
+    if (b) out[c.id] = b.finalScore;
+  }
+  return out;
+}
 
 export default function App() {
   const [state, setState] = useState<SavedGameState>(() => loadState());
   const [view, setView] = useState<View>(() => {
     const initial = loadState();
+    if (!initial.playerName) return 'name';
     return initial.hasCompletedTutorial ? 'home' : 'play';
   });
   const [introDismissed, setIntroDismissed] = useState(false);
@@ -116,6 +131,24 @@ export default function App() {
       };
     });
 
+    if (isNewBest && pointsEarned > 0) {
+      const s = stateRef.current;
+      const nextBests = isNewBest
+        ? { ...s.bestScoresByChallenge, [id]: result }
+        : s.bestScoresByChallenge;
+      const levelScores = buildLevelScoresMap(nextBests);
+      const passedThreshold = result.finalScore >= 70;
+      const projectedStreak = passedThreshold ? s.currentStreak + 1 : 0;
+      const projectedBestStreak = Math.max(s.currentStreak, projectedStreak);
+      void submitScore({
+        id: s.playerId,
+        name: s.playerName,
+        totalPoints: nextTotal,
+        bestStreak: projectedBestStreak,
+        levelScores,
+      });
+    }
+
     return {
       isNewBest,
       pointsEarned,
@@ -139,6 +172,24 @@ export default function App() {
     setView('home');
   }
 
+  function handleOpenLeaderboard() {
+    setView('leaderboard');
+  }
+
+  function handleSubmitName(name: string) {
+    setState((prev) => ({ ...prev, playerName: name }));
+    if (stateRef.current.hasCompletedTutorial) {
+      setView('home');
+    } else {
+      setView('play');
+    }
+  }
+
+  function handleEditName(name: string) {
+    setState((prev) => ({ ...prev, playerName: name }));
+    void updateName(stateRef.current.playerId, name);
+  }
+
   function handleResetAll() {
     if (
       typeof window !== 'undefined' &&
@@ -151,7 +202,7 @@ export default function App() {
     const fresh = resetState();
     setState(fresh);
     setIntroDismissed(false);
-    setView('play');
+    setView('name');
   }
 
   function handlePickChallenge(id: string) {
@@ -172,24 +223,52 @@ export default function App() {
     [state.bestScoresByChallenge],
   );
 
+  const wrapperClass = 'w-full max-w-md mx-auto min-h-screen flex flex-col';
+  const wrapperStyle = { minHeight: '100dvh' } as const;
+
+  if (view === 'name') {
+    return (
+      <div className={wrapperClass} style={wrapperStyle}>
+        <NameEntryScreen
+          initialName={state.playerName}
+          mode="first-launch"
+          onSubmit={handleSubmitName}
+        />
+      </div>
+    );
+  }
+
+  if (view === 'leaderboard') {
+    return (
+      <div className={wrapperClass} style={wrapperStyle}>
+        <LeaderboardScreen
+          playerId={state.playerId}
+          playerName={state.playerName}
+          onHome={handleHome}
+        />
+      </div>
+    );
+  }
+
   if (view === 'home' && canGoHome) {
     return (
-      <div className="w-full max-w-md mx-auto min-h-screen flex flex-col"
-         style={{ minHeight: '100dvh' }}>
+      <div className={wrapperClass} style={wrapperStyle}>
         <HomeScreen
           totalPoints={totalPoints}
           bestScores={state.bestScoresByChallenge}
           streak={state.currentStreak}
+          playerName={state.playerName}
           onPickChallenge={handlePickChallenge}
           onResetAll={handleResetAll}
+          onOpenLeaderboard={handleOpenLeaderboard}
+          onEditName={handleEditName}
         />
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-md mx-auto min-h-screen flex flex-col"
-         style={{ minHeight: '100dvh' }}>
+    <div className={wrapperClass} style={wrapperStyle}>
       <ChallengeScreen
         challenge={currentChallenge}
         targetUnitPath={targetUnitPath}

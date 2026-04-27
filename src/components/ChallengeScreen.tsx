@@ -336,6 +336,7 @@ export default function ChallengeScreen({
       <TimingScope
         phase={phase}
         target={target}
+        elapsed={elapsed}
         cursorDelta={cursorDelta}
         hintText={
           phase === 'armed'
@@ -350,9 +351,30 @@ export default function ChallengeScreen({
 }
 
 const SCOPE_RANGE = 1.5;
+const PRE_PCT = 22;
+const SCORING_PCT = 56;
+const POST_PCT = 100 - PRE_PCT - SCORING_PCT;
 
-function deltaToPct(delta: number): number {
-  return Math.max(0, Math.min(100, ((delta + SCOPE_RANGE) / (SCOPE_RANGE * 2)) * 100));
+function deltaInScoreToPct(delta: number): number {
+  return PRE_PCT + ((delta + SCOPE_RANGE) / (SCOPE_RANGE * 2)) * SCORING_PCT;
+}
+
+function elapsedToPct(elapsed: number, target: number): number {
+  if (elapsed <= 0) return 0;
+  const preEnd = target - SCOPE_RANGE;
+  const scoreEnd = target + SCOPE_RANGE;
+  if (elapsed < preEnd) {
+    if (preEnd <= 0.001) return PRE_PCT;
+    return (elapsed / preEnd) * PRE_PCT;
+  }
+  if (elapsed <= scoreEnd) {
+    return PRE_PCT + ((elapsed - preEnd) / (SCOPE_RANGE * 2)) * SCORING_PCT;
+  }
+  const postRange = Math.max(target, 1);
+  return Math.min(
+    100,
+    PRE_PCT + SCORING_PCT + ((elapsed - scoreEnd) / postRange) * POST_PCT,
+  );
 }
 
 interface ScopeZone {
@@ -362,15 +384,17 @@ interface ScopeZone {
 }
 
 const SCOPE_ZONES: ScopeZone[] = [
-  { from: -SCOPE_RANGE, to: -1.05, fill: 'rgba(255, 61, 164, 0.18)' },
-  { from: -1.05, to: -0.55, fill: 'rgba(255, 245, 224, 0.08)' },
-  { from: -0.55, to: -0.25, fill: 'rgba(61, 240, 255, 0.18)' },
-  { from: -0.25, to: -0.05, fill: 'rgba(164, 255, 61, 0.24)' },
-  { from: -0.05, to: 0.05, fill: 'rgba(255, 232, 61, 0.55)' },
-  { from: 0.05, to: 0.25, fill: 'rgba(164, 255, 61, 0.24)' },
-  { from: 0.25, to: 0.55, fill: 'rgba(61, 240, 255, 0.18)' },
-  { from: 0.55, to: 1.05, fill: 'rgba(255, 245, 224, 0.08)' },
-  { from: 1.05, to: SCOPE_RANGE, fill: 'rgba(255, 61, 164, 0.18)' },
+  { from: 0, to: PRE_PCT, fill: 'rgba(61, 240, 255, 0.05)' },
+  { from: deltaInScoreToPct(-SCOPE_RANGE), to: deltaInScoreToPct(-1.05), fill: 'rgba(255, 61, 164, 0.18)' },
+  { from: deltaInScoreToPct(-1.05), to: deltaInScoreToPct(-0.55), fill: 'rgba(255, 245, 224, 0.08)' },
+  { from: deltaInScoreToPct(-0.55), to: deltaInScoreToPct(-0.25), fill: 'rgba(61, 240, 255, 0.2)' },
+  { from: deltaInScoreToPct(-0.25), to: deltaInScoreToPct(-0.05), fill: 'rgba(164, 255, 61, 0.26)' },
+  { from: deltaInScoreToPct(-0.05), to: deltaInScoreToPct(0.05), fill: 'rgba(255, 232, 61, 0.6)' },
+  { from: deltaInScoreToPct(0.05), to: deltaInScoreToPct(0.25), fill: 'rgba(164, 255, 61, 0.26)' },
+  { from: deltaInScoreToPct(0.25), to: deltaInScoreToPct(0.55), fill: 'rgba(61, 240, 255, 0.2)' },
+  { from: deltaInScoreToPct(0.55), to: deltaInScoreToPct(1.05), fill: 'rgba(255, 245, 224, 0.08)' },
+  { from: deltaInScoreToPct(1.05), to: deltaInScoreToPct(SCOPE_RANGE), fill: 'rgba(255, 61, 164, 0.18)' },
+  { from: PRE_PCT + SCORING_PCT, to: 100, fill: 'rgba(255, 61, 164, 0.06)' },
 ];
 
 function gradeFromDelta(delta: number): { label: string; color: string } {
@@ -385,11 +409,13 @@ function gradeFromDelta(delta: number): { label: string; color: string } {
 function TimingScope({
   phase,
   target,
+  elapsed,
   cursorDelta,
   hintText,
 }: {
   phase: Phase;
   target: number;
+  elapsed: number;
   cursorDelta: number | null;
   hintText: string;
 }) {
@@ -398,8 +424,14 @@ function TimingScope({
   const liveGrade = cursorDelta != null ? gradeFromDelta(cursorDelta) : null;
 
   const showCursor = phase !== 'armed' && cursorDelta != null;
-  const cursorPct = showCursor ? deltaToPct(cursorDelta!) : 50;
+  const cursorPct =
+    phase === 'running'
+      ? elapsedToPct(elapsed, target)
+      : phase === 'result' && cursorDelta != null
+      ? elapsedToPct(target + cursorDelta, target)
+      : 0;
   const cursorIsLate = (cursorDelta ?? 0) > 0;
+  const cursorInScoringZone = cursorPct >= PRE_PCT && cursorPct <= PRE_PCT + SCORING_PCT;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -438,37 +470,71 @@ function TimingScope({
             key={i}
             className="absolute top-0 bottom-0"
             style={{
-              left: `${deltaToPct(z.from)}%`,
-              width: `${deltaToPct(z.to) - deltaToPct(z.from)}%`,
+              left: `${z.from}%`,
+              width: `${z.to - z.from}%`,
               background: z.fill,
             }}
           />
         ))}
 
         <div
-          className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[3px] bg-splat-paper rounded-full"
-          style={{ boxShadow: '0 0 14px rgba(255,232,61,0.95)' }}
+          className="absolute top-0 bottom-0 w-[3px] bg-splat-paper rounded-full"
+          style={{
+            left: `${PRE_PCT + SCORING_PCT / 2}%`,
+            transform: 'translateX(-50%)',
+            boxShadow: '0 0 14px rgba(255,232,61,0.95)',
+          }}
         />
 
-        <div className="absolute inset-0 flex items-center justify-between px-2 pointer-events-none">
-          <span className="text-poster text-[9px] tracking-[0.18em] text-splat-pink/60">
+        <div
+          className="absolute top-0 bottom-0 border-l border-r border-splat-paper/15"
+          style={{
+            left: `${PRE_PCT}%`,
+            width: `${SCORING_PCT}%`,
+          }}
+        />
+
+        <div className="absolute inset-0 pointer-events-none">
+          <span
+            className="text-poster absolute top-1/2 -translate-y-1/2 text-[9px] tracking-[0.18em] text-splat-cyan/55"
+            style={{ left: '4%' }}
+          >
+            INCOMING
+          </span>
+          <span
+            className="text-poster absolute top-1/2 -translate-y-1/2 text-[9px] tracking-[0.18em] text-splat-pink/65"
+            style={{ left: `${PRE_PCT + 2}%` }}
+          >
             EARLY
           </span>
           <span
-            className={`text-poster text-[9px] tracking-[0.22em] ${
-              inPerfect ? 'text-splat-yellow' : 'text-splat-yellow/55'
+            className={`text-poster absolute top-1/2 -translate-y-1/2 text-[9px] tracking-[0.22em] ${
+              inPerfect ? 'text-splat-yellow' : 'text-splat-yellow/65'
             }`}
+            style={{
+              left: `${PRE_PCT + SCORING_PCT / 2}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
           >
             PERFECT
           </span>
-          <span className="text-poster text-[9px] tracking-[0.18em] text-splat-pink/60">
+          <span
+            className="text-poster absolute top-1/2 -translate-y-1/2 text-[9px] tracking-[0.18em] text-splat-pink/65"
+            style={{ right: `${POST_PCT + 2}%` }}
+          >
             LATE
+          </span>
+          <span
+            className="text-poster absolute top-1/2 -translate-y-1/2 text-[9px] tracking-[0.18em] text-splat-pink/55"
+            style={{ right: '4%' }}
+          >
+            OVER
           </span>
         </div>
 
         {showCursor && (
           <div
-            className="absolute top-0 bottom-0 transition-[left] duration-75"
+            className="absolute top-0 bottom-0 transition-[left] duration-100 ease-linear"
             style={{ left: `${cursorPct}%`, transform: 'translateX(-50%)' }}
           >
             <div
@@ -477,6 +543,8 @@ function TimingScope({
                   ? 'bg-splat-yellow'
                   : inElite
                   ? 'bg-splat-lime'
+                  : !cursorInScoringZone && !cursorIsLate
+                  ? 'bg-splat-cyan'
                   : cursorIsLate
                   ? 'bg-splat-pink'
                   : 'bg-splat-cyan'

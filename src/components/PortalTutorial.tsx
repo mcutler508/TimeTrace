@@ -61,43 +61,65 @@ export default function PortalTutorial({ show, onDismiss }: Props) {
             PORTALS
           </h2>
           <p className="text-[12px] text-splat-paper/75 mt-2 leading-snug">
-            When your stroke crosses a <span className="text-splat-cyan">cyan ring</span>, your
-            line teleports out of the matching{' '}
-            <span className="text-splat-pink">magenta ring</span>. Keep dragging your finger and
-            the line continues from the exit.
+            When your stroke crosses the <span className="text-splat-cyan">cyan slash (IN)</span>{' '}
+            on the path, the line warps and resumes from the matching{' '}
+            <span className="text-splat-pink">magenta slash (OUT)</span> further along. Keep your
+            finger moving — the line continues automatically.
           </p>
         </div>
 
         {/* Mini diagram */}
         <div className="card-sticker px-3 py-3 -rotate-[0.6deg]" style={{ background: 'rgba(8,6,20,0.85)' }}>
-          <svg viewBox="0 0 220 70" width="100%" height="70">
-            {/* Entry portal */}
-            <circle cx="55" cy="35" r="14" fill="none" stroke="#3df0ff" strokeWidth="3" />
-            <circle cx="55" cy="35" r="2.5" fill="#3df0ff" />
-            {/* Exit portal */}
-            <circle cx="165" cy="35" r="14" fill="none" stroke="#ff3da4" strokeWidth="3" />
-            <circle cx="165" cy="35" r="2.5" fill="#ff3da4" />
-            {/* Approach line */}
+          <svg viewBox="0 0 220 80" width="100%" height="80">
+            {/* Target shape line — a curve under the slashes */}
             <path
-              d="M 10 35 Q 30 45 45 38"
+              d="M 10 40 Q 70 60 110 40 T 210 40"
+              stroke="rgba(180,220,255,0.55)"
+              strokeWidth="3"
+              fill="none"
+              strokeLinecap="round"
+            />
+            {/* Entry slash (cyan) on the path, perpendicular */}
+            <g transform="translate(70 49) rotate(28)">
+              <line x1="-15" y1="0" x2="15" y2="0" stroke="#3df0ff" strokeWidth="6" strokeLinecap="round" />
+              <line x1="-15" y1="-3" x2="15" y2="-3" stroke="#0a0708" strokeWidth="2" strokeLinecap="round" />
+              <line x1="-15" y1="3" x2="15" y2="3" stroke="#0a0708" strokeWidth="2" strokeLinecap="round" />
+              <line x1="-15" y1="0" x2="15" y2="0" stroke="rgba(255,255,255,0.95)" strokeWidth="1.2" />
+              <text x="0" y="-22" textAnchor="middle" fontSize="9" fill="#3df0ff" fontWeight="700">
+                IN
+              </text>
+            </g>
+            {/* Exit slash (pink) further along */}
+            <g transform="translate(150 49) rotate(-28)">
+              <line x1="-15" y1="0" x2="15" y2="0" stroke="#ff3da4" strokeWidth="6" strokeLinecap="round" />
+              <line x1="-15" y1="-3" x2="15" y2="-3" stroke="#0a0708" strokeWidth="2" strokeLinecap="round" />
+              <line x1="-15" y1="3" x2="15" y2="3" stroke="#0a0708" strokeWidth="2" strokeLinecap="round" />
+              <line x1="-15" y1="0" x2="15" y2="0" stroke="rgba(255,255,255,0.95)" strokeWidth="1.2" />
+              <text x="0" y="-22" textAnchor="middle" fontSize="9" fill="#ff3da4" fontWeight="700">
+                OUT
+              </text>
+            </g>
+            {/* Player stroke approaching IN */}
+            <path
+              d="M 10 40 Q 40 50 65 50"
               stroke="#a4ff3d"
               strokeWidth="3"
               fill="none"
               strokeLinecap="round"
             />
-            {/* Continue line on the other side */}
+            {/* Player stroke continuing from OUT */}
             <path
-              d="M 175 33 Q 195 28 210 35"
+              d="M 158 38 Q 180 32 210 40"
               stroke="#a4ff3d"
               strokeWidth="3"
               fill="none"
               strokeLinecap="round"
             />
-            {/* Dashed connection */}
+            {/* Dashed link */}
             <path
-              d="M 55 35 L 165 35"
-              stroke="rgba(255,245,224,0.3)"
-              strokeWidth="1.5"
+              d="M 70 49 Q 110 32 150 49"
+              stroke="rgba(255,245,224,0.25)"
+              strokeWidth="1.2"
               strokeDasharray="4 6"
               fill="none"
             />

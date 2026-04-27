@@ -203,9 +203,9 @@ export const CHALLENGES: ChallengeMeta[] = [
     unlockThreshold: 800,
     title: 'New Moon',
     chapter: 2,
-    portals: [
-      { entry: { x: 0.42, y: 0.5, r: 0.07 }, exit: { x: 0.7, y: 0.5, r: 0.07 } },
-    ],
+    // Crescent traces outer arc (t 0–0.5) then inner arc (t 0.5–1).
+    // Skip from late-outer to early-inner so the player jumps the bottom transition.
+    portals: [{ entry: { pathT: 0.45 }, exit: { pathT: 0.55 } }],
   },
   {
     id: 'cube-10',
@@ -216,9 +216,9 @@ export const CHALLENGES: ChallengeMeta[] = [
     unlockThreshold: 890,
     title: 'Hypercube',
     chapter: 2,
-    portals: [
-      { entry: { x: 0.5, y: 0.35, r: 0.07 }, exit: { x: 0.5, y: 0.55, r: 0.07 } },
-    ],
+    // Cube traces outline first (t 0–0.55), then inner edges. Portal mid-outline
+    // skips ahead into the inner-edge phase.
+    portals: [{ entry: { pathT: 0.5 }, exit: { pathT: 0.65 } }],
   },
   {
     id: 'sqcircle-10',
@@ -229,9 +229,9 @@ export const CHALLENGES: ChallengeMeta[] = [
     unlockThreshold: 990,
     title: 'Boxed In',
     chapter: 2,
-    portals: [
-      { entry: { x: 0.5, y: 0.12, r: 0.07 }, exit: { x: 0.5, y: 0.32, r: 0.07 } },
-    ],
+    // Outer circle dominates t 0–0.6, then inner square. Portal jumps from
+    // mid-circle to the start of the square section.
+    portals: [{ entry: { pathT: 0.55 }, exit: { pathT: 0.7 } }],
   },
   {
     id: 'trefoil-11',
@@ -242,9 +242,8 @@ export const CHALLENGES: ChallengeMeta[] = [
     unlockThreshold: 1100,
     title: 'Knot Yet',
     chapter: 2,
-    portals: [
-      { entry: { x: 0.32, y: 0.5, r: 0.07 }, exit: { x: 0.68, y: 0.5, r: 0.07 } },
-    ],
+    // Trefoil has 3 lobes spread across t. Skip the middle lobe.
+    portals: [{ entry: { pathT: 0.33 }, exit: { pathT: 0.66 } }],
   },
   {
     id: 'maple-12',
@@ -255,9 +254,10 @@ export const CHALLENGES: ChallengeMeta[] = [
     unlockThreshold: 1220,
     title: 'Autumn',
     chapter: 2,
+    // Maple leaf has 5 tips. Jump between non-adjacent tips twice.
     portals: [
-      { entry: { x: 0.3, y: 0.35, r: 0.06 }, exit: { x: 0.7, y: 0.35, r: 0.06 } },
-      { entry: { x: 0.3, y: 0.7, r: 0.06 }, exit: { x: 0.7, y: 0.7, r: 0.06 } },
+      { entry: { pathT: 0.2 }, exit: { pathT: 0.5 } },
+      { entry: { pathT: 0.7 }, exit: { pathT: 0.9 } },
     ],
   },
   {
@@ -269,9 +269,8 @@ export const CHALLENGES: ChallengeMeta[] = [
     unlockThreshold: 1350,
     title: 'Bounce',
     chapter: 2,
-    portals: [
-      { entry: { x: 0.32, y: 0.5, r: 0.06 }, exit: { x: 0.68, y: 0.5, r: 0.06 } },
-    ],
+    // Spring traces left-to-right with sine oscillation. Skip a middle stretch.
+    portals: [{ entry: { pathT: 0.4 }, exit: { pathT: 0.6 } }],
   },
   {
     id: 'pretzel-13',
@@ -283,8 +282,8 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'Twisted',
     chapter: 2,
     portals: [
-      { entry: { x: 0.5, y: 0.3, r: 0.06 }, exit: { x: 0.5, y: 0.7, r: 0.06 } },
-      { entry: { x: 0.3, y: 0.5, r: 0.06 }, exit: { x: 0.7, y: 0.5, r: 0.06 } },
+      { entry: { pathT: 0.18 }, exit: { pathT: 0.42 } },
+      { entry: { pathT: 0.58 }, exit: { pathT: 0.82 } },
     ],
   },
   {
@@ -297,8 +296,8 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'Ascendant',
     chapter: 2,
     portals: [
-      { entry: { x: 0.5, y: 0.7, r: 0.06 }, exit: { x: 0.5, y: 0.4, r: 0.06 } },
-      { entry: { x: 0.32, y: 0.6, r: 0.06 }, exit: { x: 0.68, y: 0.6, r: 0.06 } },
+      { entry: { pathT: 0.25 }, exit: { pathT: 0.55 } },
+      { entry: { pathT: 0.75 }, exit: { pathT: 0.92 } },
     ],
   },
 ];

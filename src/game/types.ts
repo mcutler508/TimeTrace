@@ -43,12 +43,14 @@ export interface Point {
 }
 
 export interface Portal {
-  /** Center x in unit space [0, 1] */
-  x: number;
-  /** Center y in unit space [0, 1] */
-  y: number;
-  /** Radius in unit space (typical: 0.06–0.09) */
-  r: number;
+  /**
+   * Parametric position along the target path as a fraction in [0, 1].
+   * 0 = start of path, 1 = end. Portal sits on the curve at this point and
+   * is rendered as a glowing slash perpendicular to the path tangent there.
+   */
+  pathT: number;
+  /** Slash length in unit space. Defaults to ~0.09. */
+  length?: number;
 }
 
 export interface PortalPair {

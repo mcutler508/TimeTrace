@@ -1,6 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, forwardRef } from 'react';
 import type { AttemptResult, Point, PortalPair } from '../game/types';
-import { scaleNormalizedToCanvas } from '../game/pathUtils';
+import { sampleAt, scaleNormalizedToCanvas, segmentsIntersect } from '../game/pathUtils';
 import { haptics } from '../game/haptics';
 import { sfx } from '../game/audio';
 import {
@@ -188,93 +188,187 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     return scaleNormalizedToCanvas(targetUnitPath, w, h, 36);
   }
 
-  /** Convert each portal pair from unit coords to canvas pixels matching the
-   *  same scaling used for the target shape. */
-  function portalCanvasPairs(): { entry: Point & { r: number }; exit: Point & { r: number } }[] {
-    if (!portals || portals.length === 0) return [];
+  /**
+   * For each portal pair, compute the canvas-space slash endpoints AND the
+   * tangent-derived perpendicular axis. Slashes sit on the target shape line
+   * and are perpendicular to the curve tangent at that parametric position.
+   */
+  interface PortalSlash {
+    /** Slash midpoint on the path (in canvas pixels). */
+    p: { x: number; y: number };
+    /** Tangent unit vector along the path at that point. */
+    tangent: { x: number; y: number };
+    /** Perpendicular unit vector (the slash's long axis). */
+    perp: { x: number; y: number };
+    /** Slash length (canvas px). */
+    halfLen: number;
+    /** Endpoint A of the slash. */
+    a: { x: number; y: number };
+    /** Endpoint B of the slash. */
+    b: { x: number; y: number };
+  }
+
+  function makeSlash(pathT: number, lengthUnit: number): PortalSlash {
+    const tCanvas = targetCanvasPath();
+    const sample = sampleAt(tCanvas, pathT);
+    const tangent = sample.tangent;
+    const perp = { x: -tangent.y, y: tangent.x };
     const { w, h } = sizeRef.current;
     const padding = 36;
     const size = Math.min(w, h) - padding * 2;
-    const offsetX = (w - size) / 2;
-    const offsetY = (h - size) / 2;
-    return portals.map((p) => ({
-      entry: {
-        x: offsetX + p.entry.x * size,
-        y: offsetY + p.entry.y * size,
-        r: p.entry.r * size,
-      },
-      exit: {
-        x: offsetX + p.exit.x * size,
-        y: offsetY + p.exit.y * size,
-        r: p.exit.r * size,
-      },
+    const halfLen = (lengthUnit * size) / 2;
+    const a = { x: sample.point.x + perp.x * halfLen, y: sample.point.y + perp.y * halfLen };
+    const b = { x: sample.point.x - perp.x * halfLen, y: sample.point.y - perp.y * halfLen };
+    return { p: sample.point, tangent, perp, halfLen, a, b };
+  }
+
+  function portalSlashes(): { entry: PortalSlash; exit: PortalSlash }[] {
+    if (!portals || portals.length === 0) return [];
+    return portals.map((pair) => ({
+      entry: makeSlash(pair.entry.pathT, pair.entry.length ?? 0.1),
+      exit: makeSlash(pair.exit.pathT, pair.exit.length ?? 0.1),
     }));
+  }
+
+  function drawPortalSlash(
+    ctx: CanvasRenderingContext2D,
+    slash: PortalSlash,
+    color: string,
+    used: boolean,
+    pulse: number,
+    label: string,
+  ) {
+    const breath = used ? 0 : 0.12 * Math.sin(pulse * Math.PI * 2);
+    const liveLen = slash.halfLen * (1 + breath);
+    const a = {
+      x: slash.p.x + slash.perp.x * liveLen,
+      y: slash.p.y + slash.perp.y * liveLen,
+    };
+    const b = {
+      x: slash.p.x - slash.perp.x * liveLen,
+      y: slash.p.y - slash.perp.y * liveLen,
+    };
+
+    // Stroke endpoints offset slightly along tangent for the parallel double line.
+    const off = 3.5;
+    const t = slash.tangent;
+    const a1 = { x: a.x + t.x * off, y: a.y + t.y * off };
+    const b1 = { x: b.x + t.x * off, y: b.y + t.y * off };
+    const a2 = { x: a.x - t.x * off, y: a.y - t.y * off };
+    const b2 = { x: b.x - t.x * off, y: b.y - t.y * off };
+
+    ctx.save();
+    ctx.lineCap = 'round';
+
+    if (used) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+
+    // Outer halo
+    ctx.shadowBlur = 26;
+    ctx.shadowColor = color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    // Sticker outlines
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#0a0708';
+    ctx.lineWidth = 5;
+    [
+      [a1, b1],
+      [a2, b2],
+    ].forEach(([s, e]) => {
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(e.x, e.y);
+      ctx.stroke();
+    });
+
+    // Bright parallel cores
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = color;
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = color;
+    [
+      [a1, b1],
+      [a2, b2],
+    ].forEach(([s, e]) => {
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(e.x, e.y);
+      ctx.stroke();
+    });
+
+    // Hot white center stripe
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    // Tiny tangent ticks at each end (subtle "energy" detail)
+    const tickLen = 4;
+    [a, b].forEach((endpt) => {
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(endpt.x - t.x * tickLen, endpt.y - t.y * tickLen);
+      ctx.lineTo(endpt.x + t.x * tickLen, endpt.y + t.y * tickLen);
+      ctx.stroke();
+    });
+
+    // Letter label (E / X) on the slash, near the path
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = 'bold 9px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const labelOffset = 14;
+    ctx.fillText(
+      label,
+      slash.p.x + slash.perp.x * (slash.halfLen + labelOffset),
+      slash.p.y + slash.perp.y * (slash.halfLen + labelOffset),
+    );
+    ctx.restore();
   }
 
   function drawPortalPair(
     ctx: CanvasRenderingContext2D,
-    entry: Point & { r: number },
-    exit: Point & { r: number },
+    entry: PortalSlash,
+    exit: PortalSlash,
     used: boolean,
     pulse: number,
   ) {
-    const drawRing = (
-      cx: number,
-      cy: number,
-      r: number,
-      color: string,
-      thickness: number,
-    ) => {
-      ctx.save();
-      ctx.lineWidth = thickness;
-      // Outer halo
-      ctx.shadowBlur = 22;
-      ctx.shadowColor = color;
-      ctx.strokeStyle = color;
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.stroke();
-      // Black sticker outline
-      ctx.shadowBlur = 0;
-      ctx.lineWidth = thickness + 4;
-      ctx.strokeStyle = '#0a0708';
-      ctx.beginPath();
-      ctx.arc(cx, cy, r + 1, 0, Math.PI * 2);
-      ctx.stroke();
-      // Inner ring
-      ctx.lineWidth = thickness;
-      ctx.strokeStyle = color;
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.stroke();
-      // Center pip
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    };
-
-    const entryColor = used ? 'rgba(255,255,255,0.35)' : '#3df0ff';
-    const exitColor = used ? 'rgba(255,255,255,0.35)' : '#ff3da4';
-
-    const pulseR = used ? entry.r : entry.r * (1 + 0.08 * Math.sin(pulse * Math.PI * 2));
-    drawRing(entry.x, entry.y, pulseR, entryColor, 3);
-    const pulseR2 = used ? exit.r : exit.r * (1 + 0.08 * Math.sin(pulse * Math.PI * 2 + Math.PI));
-    drawRing(exit.x, exit.y, pulseR2, exitColor, 3);
-
-    // Connection arc (subtle dashed)
+    // Connection arc (faint curved link from entry to exit) — only when active.
     if (!used) {
       ctx.save();
-      ctx.setLineDash([6, 8]);
-      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 7]);
+      ctx.lineWidth = 1.25;
       ctx.strokeStyle = 'rgba(255, 245, 224, 0.18)';
       ctx.beginPath();
-      ctx.moveTo(entry.x, entry.y);
-      ctx.lineTo(exit.x, exit.y);
+      // Curved bezier between entry and exit midpoints
+      const cx = (entry.p.x + exit.p.x) / 2;
+      const cy = (entry.p.y + exit.p.y) / 2 - 18;
+      ctx.moveTo(entry.p.x, entry.p.y);
+      ctx.quadraticCurveTo(cx, cy, exit.p.x, exit.p.y);
       ctx.stroke();
       ctx.restore();
     }
+
+    drawPortalSlash(ctx, entry, '#3df0ff', used, pulse, 'IN');
+    drawPortalSlash(ctx, exit, '#ff3da4', used, pulse + 0.5, 'OUT');
   }
 
   function redraw() {
@@ -328,8 +422,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     // Portals (drawn over everything except the burst)
     if (portals && portals.length > 0) {
       const pulse = ((performance.now() - portalAnimStartRef.current) / 1400) % 1;
-      const canvasPairs = portalCanvasPairs();
-      canvasPairs.forEach((pair, idx) => {
+      const slashes = portalSlashes();
+      slashes.forEach((pair, idx) => {
         drawPortalPair(
           ctx,
           pair.entry,
@@ -549,33 +643,33 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     };
   }
 
-  /** Detect if the just-added point crosses an unused portal A. If so, mark
-   *  the previous path point as a teleport boundary, expand the offset, and
-   *  return the offset-applied point that should appear at portal B. */
+  /**
+   * Detect if the segment from the LAST stroke point to the candidate point
+   * crosses an unused portal entry slash. If so, mark the prior point as a
+   * teleport boundary, accumulate the offset (entry slash midpoint → exit
+   * slash midpoint), and return the offset-applied next point.
+   */
   function maybeTeleport(point: Point): Point {
     if (!portals || portals.length === 0) return point;
-    const canvasPairs = portalCanvasPairs();
-    for (let i = 0; i < canvasPairs.length; i++) {
+    if (pathRef.current.length === 0) return point;
+    const prev = pathRef.current[pathRef.current.length - 1];
+    const slashes = portalSlashes();
+    for (let i = 0; i < slashes.length; i++) {
       if (usedPortalsRef.current.has(i)) continue;
-      const { entry, exit } = canvasPairs[i];
-      const dx = point.x - entry.x;
-      const dy = point.y - entry.y;
-      if (dx * dx + dy * dy <= entry.r * entry.r) {
+      const { entry, exit } = slashes[i];
+      if (segmentsIntersect(prev, point, entry.a, entry.b)) {
         usedPortalsRef.current.add(i);
-        // Mark the LAST point in the path as the pre-teleport boundary so the
-        // line lifts to the exit portal.
         if (pathRef.current.length > 0) {
           const last = pathRef.current[pathRef.current.length - 1];
           pathRef.current[pathRef.current.length - 1] = { ...last, teleport: true };
         }
-        // The new offset positions subsequent finger movement around exit.
-        const offDx = exit.x - entry.x;
-        const offDy = exit.y - entry.y;
+        const offDx = exit.p.x - entry.p.x;
+        const offDy = exit.p.y - entry.p.y;
         teleportOffsetRef.current = {
           dx: teleportOffsetRef.current.dx + offDx,
           dy: teleportOffsetRef.current.dy + offDy,
         };
-        sfx.tap();
+        sfx.unlock();
         haptics.tap();
         return {
           x: point.x + offDx,

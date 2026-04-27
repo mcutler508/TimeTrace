@@ -37,6 +37,75 @@ export function pathLength(path: Point[]): number {
   return total;
 }
 
+/**
+ * Sample a position + unit tangent at fraction t in [0, 1] along the polyline,
+ * weighting by arc length (so a long segment gets proportional t span).
+ */
+export function sampleAt(
+  path: Point[],
+  t: number,
+): { point: Point; tangent: { x: number; y: number } } {
+  const clampedT = Math.max(0, Math.min(1, t));
+  if (path.length < 2) {
+    return {
+      point: path[0] ?? { x: 0, y: 0 },
+      tangent: { x: 1, y: 0 },
+    };
+  }
+  const segLengths: number[] = [];
+  let total = 0;
+  for (let i = 1; i < path.length; i++) {
+    const len = Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y);
+    segLengths.push(len);
+    total += len;
+  }
+  if (total === 0) {
+    return { point: path[0], tangent: { x: 1, y: 0 } };
+  }
+  const target = clampedT * total;
+  let acc = 0;
+  for (let i = 0; i < segLengths.length; i++) {
+    const segLen = segLengths[i];
+    if (acc + segLen >= target || i === segLengths.length - 1) {
+      const localT = segLen === 0 ? 0 : Math.min(1, (target - acc) / segLen);
+      const a = path[i];
+      const b = path[i + 1];
+      const x = a.x + (b.x - a.x) * localT;
+      const y = a.y + (b.y - a.y) * localT;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const mag = Math.hypot(dx, dy);
+      const tangent = mag > 0 ? { x: dx / mag, y: dy / mag } : { x: 1, y: 0 };
+      return { point: { x, y }, tangent };
+    }
+    acc += segLen;
+  }
+  return { point: path[path.length - 1], tangent: { x: 1, y: 0 } };
+}
+
+/**
+ * Segment-segment intersection test in 2D. Returns true if the two line
+ * segments cross. Used for portal slash detection.
+ */
+export function segmentsIntersect(
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  p3: { x: number; y: number },
+  p4: { x: number; y: number },
+): boolean {
+  const d1x = p2.x - p1.x;
+  const d1y = p2.y - p1.y;
+  const d2x = p4.x - p3.x;
+  const d2y = p4.y - p3.y;
+  const denom = d1x * d2y - d1y * d2x;
+  if (Math.abs(denom) < 1e-9) return false;
+  const dx = p3.x - p1.x;
+  const dy = p3.y - p1.y;
+  const t = (dx * d2y - dy * d2x) / denom;
+  const u = (dx * d1y - dy * d1x) / denom;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+}
+
 /** Split a path into contiguous sub-paths at teleport break points. */
 export function splitOnTeleport(path: Point[]): Point[][] {
   const out: Point[][] = [];

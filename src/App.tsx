@@ -43,6 +43,7 @@ export default function App() {
     pointsEarned: 0,
     unlockedTitle: null,
   });
+  const [introDismissed, setIntroDismissed] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -177,6 +178,8 @@ export default function App() {
   }
 
   const showTutorialHints = inTutorial && state.tutorialAttempts < TUTORIAL_HINT_LIMIT;
+  const showTutorialIntro =
+    inTutorial && state.tutorialAttempts === 0 && !introDismissed;
   const canGoHome = state.hasCompletedTutorial;
 
   if (view === 'home' && canGoHome) {
@@ -201,6 +204,8 @@ export default function App() {
           ghostUnitPath={ghostUnitPath}
           bestUnitPath={bestUnitPath}
           showTutorialHints={showTutorialHints}
+          showTutorialIntro={showTutorialIntro}
+          onDismissIntro={() => setIntroDismissed(true)}
           bestScore={bestScore}
           streak={state.currentStreak}
           onSubmit={handleSubmit}

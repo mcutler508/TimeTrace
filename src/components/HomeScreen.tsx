@@ -1,6 +1,7 @@
 import { CHALLENGES, pointsToNextUnlock } from '../game/challenges';
 import type { AttemptResult } from '../game/types';
 import ShapePreview from './ShapePreview';
+import HowItWorks from './HowItWorks';
 
 interface Props {
   totalPoints: number;
@@ -63,6 +64,8 @@ export default function HomeScreen({
           )}
         </div>
       </div>
+
+      <HowItWorks />
 
       <div>
         <div className="text-[10px] uppercase tracking-[0.32em] text-white/45 mb-2 px-1">

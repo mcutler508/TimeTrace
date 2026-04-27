@@ -10,10 +10,12 @@ interface Props {
   ghostUnitPath?: Point[] | null;
   bestUnitPath?: Point[] | null;
   showTutorialHints: boolean;
+  showTutorialIntro?: boolean;
   bestScore?: number;
   streak: number;
   onSubmit: (path: Point[], elapsed: number) => void;
   onHome?: () => void;
+  onDismissIntro?: () => void;
 }
 
 type Phase = 'ready' | 'armed' | 'running';
@@ -28,6 +30,8 @@ export default function ChallengeScreen({
   streak,
   onSubmit,
   onHome,
+  showTutorialIntro = false,
+  onDismissIntro,
 }: Props) {
   const canvasRef = useRef<DrawingCanvasHandle | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -159,7 +163,17 @@ export default function ChallengeScreen({
           onStrokeStart={handleStrokeStart}
           onStrokeEnd={handleStrokeEnd}
         />
-        <TutorialHint show={showTutorialHints && phase === 'ready'} targetTime={target} />
+        <TutorialHint
+          show={showTutorialHints && phase === 'ready' && !showTutorialIntro}
+          targetTime={target}
+          variant="pill"
+        />
+        <TutorialHint
+          show={showTutorialIntro && phase === 'ready'}
+          targetTime={target}
+          variant="intro"
+          onDismiss={onDismissIntro}
+        />
         <div className="absolute top-3 right-3">
           <div
             className={`font-mono text-xl tabular-nums px-3 py-1 rounded-full bg-black/40 border border-white/10 ${timerColor}`}

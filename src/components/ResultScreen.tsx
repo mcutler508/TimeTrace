@@ -143,8 +143,16 @@ export default function ResultScreen({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Stat label="Shape" value={`${result.shapeScore}`} />
-        <Stat label="Timing" value={`${result.timingScore}`} />
+        <Stat
+          label="Shape · 50%"
+          value={`${result.shapeScore}`}
+          accent="cyan"
+        />
+        <Stat
+          label="Timing · 50%"
+          value={`${result.timingScore}`}
+          accent="gold"
+        />
         <Stat
           label="Time"
           value={`${result.actualTime.toFixed(2)}s`}
@@ -181,16 +189,30 @@ function Stat({
   value,
   sub,
   subTone,
+  accent,
 }: {
   label: string;
   value: string;
   sub?: string;
   subTone?: 'good' | 'neutral';
+  accent?: 'cyan' | 'gold';
 }) {
+  const labelTone =
+    accent === 'cyan'
+      ? 'text-ink-cyan/85'
+      : accent === 'gold'
+      ? 'text-ink-gold/85'
+      : 'text-white/45';
+  const valueTone =
+    accent === 'cyan'
+      ? 'text-ink-cyan text-glow-cyan'
+      : accent === 'gold'
+      ? 'text-ink-gold text-glow-gold'
+      : 'text-white';
   return (
     <div className="card rounded-2xl px-4 py-3">
-      <div className="text-[10px] uppercase tracking-[0.28em] text-white/45">{label}</div>
-      <div className="font-mono text-xl tabular-nums">{value}</div>
+      <div className={`text-[10px] uppercase tracking-[0.28em] ${labelTone}`}>{label}</div>
+      <div className={`font-mono text-xl tabular-nums ${valueTone}`}>{value}</div>
       {sub && (
         <div
           className={`font-mono text-xs tabular-nums ${

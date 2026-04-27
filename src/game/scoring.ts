@@ -114,7 +114,7 @@ export function scoreShape(
 }
 
 export function combineFinalScore(shape: number, timing: number): number {
-  return Math.round(shape * 0.7 + timing * 0.3);
+  return Math.round(shape * 0.5 + timing * 0.5);
 }
 
 export function gradeFor(finalScore: number): Grade {

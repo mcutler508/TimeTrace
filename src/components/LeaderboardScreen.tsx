@@ -164,18 +164,34 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
         </div>
       )}
 
-      <div className="text-poster text-[11px] tracking-[0.28em] text-splat-yellow bg-splat-black border-2 border-splat-yellow rounded-lg px-3 py-2 text-center">
-        DEBUG · status:{status} · entries:{entries.length} · meRank:{meRank ?? 'null'}
+      <div
+        style={{
+          background: '#ffe83d',
+          color: '#0a0708',
+          border: '3px solid #0a0708',
+          borderRadius: 12,
+          padding: '12px 14px',
+          fontFamily: 'system-ui, sans-serif',
+          fontWeight: 700,
+          fontSize: 13,
+          textAlign: 'center',
+        }}
+      >
+        DEBUG · status={status} · entries.length={entries.length} ·
+        meRank={meRank ?? 'null'} · ids=[
+        {entries.map((e) => e.name).join(', ') || 'EMPTY'}]
       </div>
 
-      {entries.length > 0 && (
-        <div className="text-poster text-[10px] tracking-[0.32em] text-splat-paper/55 px-1">
-          {entries.length} {entries.length === 1 ? 'PLAYER' : 'PLAYERS'} ON THE BOARD
-        </div>
-      )}
-
-      {entries.length > 0 && (
-        <ol className="flex flex-col gap-2">
+      <ol
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          listStyle: 'none',
+          padding: 0,
+          margin: 0,
+        }}
+      >
           {entries.map((e, i) => {
             const rank = i + 1;
             const isMe = e.id === playerId;
@@ -221,8 +237,7 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
               </li>
             );
           })}
-        </ol>
-      )}
+      </ol>
 
       {entries.length > 0 && meRank != null && !meInTopList && (
         <div className="sticky bottom-2 mt-2 card-sticker px-3 py-2.5 flex items-center gap-3">

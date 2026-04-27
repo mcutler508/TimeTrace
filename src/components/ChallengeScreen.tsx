@@ -19,7 +19,7 @@ interface Props {
   onDismissIntro?: () => void;
 }
 
-type Phase = 'ready' | 'armed' | 'running';
+type Phase = 'armed' | 'running';
 
 export default function ChallengeScreen({
   challenge,
@@ -37,8 +37,8 @@ export default function ChallengeScreen({
   const canvasRef = useRef<DrawingCanvasHandle | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
-  const phaseRef = useRef<Phase>('ready');
-  const [phase, setPhase] = useState<Phase>('ready');
+  const phaseRef = useRef<Phase>('armed');
+  const [phase, setPhase] = useState<Phase>('armed');
   const [elapsed, setElapsed] = useState(0);
 
   function changePhase(next: Phase) {
@@ -48,7 +48,7 @@ export default function ChallengeScreen({
 
   useEffect(() => {
     canvasRef.current?.reset();
-    changePhase('ready');
+    changePhase('armed');
     setElapsed(0);
     startTimeRef.current = null;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -59,13 +59,6 @@ export default function ChallengeScreen({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
-
-  function handleArm() {
-    canvasRef.current?.reset();
-    setElapsed(0);
-    changePhase('armed');
-    haptics.arm();
-  }
 
   function handleStrokeStart() {
     if (phaseRef.current !== 'armed') return;
@@ -85,16 +78,8 @@ export default function ChallengeScreen({
     const finalElapsed = (performance.now() - startTimeRef.current) / 1000;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
-    changePhase('ready');
     setElapsed(finalElapsed);
     onSubmit(path, finalElapsed);
-  }
-
-  function handleCancel() {
-    canvasRef.current?.reset();
-    changePhase('ready');
-    setElapsed(0);
-    haptics.tap();
   }
 
   const target = challenge.targetTime;
@@ -106,12 +91,10 @@ export default function ChallengeScreen({
         : 'text-ink-cyan text-glow-cyan'
       : 'text-white/80';
 
-  const canvasEnabled = phase === 'armed' || phase === 'running';
-
   return (
     <div className="flex flex-col h-full w-full max-w-md mx-auto px-5 pt-5 pb-6 gap-4">
       <header className="flex items-center justify-between gap-3">
-        {onHome && phase === 'ready' ? (
+        {onHome && phase === 'armed' ? (
           <button
             onClick={() => {
               haptics.micro();
@@ -161,7 +144,7 @@ export default function ChallengeScreen({
       >
         <DrawingCanvas
           ref={canvasRef}
-          enabled={canvasEnabled}
+          enabled
           targetUnitPath={targetUnitPath}
           guideOpacity={challenge.guideOpacity}
           ghostUnitPath={ghostUnitPath}
@@ -170,12 +153,12 @@ export default function ChallengeScreen({
           onStrokeEnd={handleStrokeEnd}
         />
         <TutorialHint
-          show={showTutorialHints && phase === 'ready' && !showTutorialIntro}
+          show={showTutorialHints && phase === 'armed' && !showTutorialIntro}
           targetTime={target}
           variant="pill"
         />
         <TutorialHint
-          show={showTutorialIntro && phase === 'ready'}
+          show={showTutorialIntro && phase === 'armed'}
           targetTime={target}
           variant="intro"
           onDismiss={onDismissIntro}
@@ -187,41 +170,15 @@ export default function ChallengeScreen({
             {elapsed.toFixed(2)}s
           </div>
         </div>
-
-        {phase === 'armed' && (
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/35 animate-fadeIn">
-            <div className="text-[10px] uppercase tracking-[0.4em] text-ink-cyan/90 text-glow-cyan">
-              Ready
-            </div>
-            <div className="font-display text-xl font-semibold text-white">
-              Touch to start
-            </div>
-            <div className="text-xs text-white/65 max-w-[16rem] text-center">
-              Timer starts the instant your finger lands. Lift to stop.
-            </div>
-          </div>
-        )}
       </div>
 
-      <div className="mt-auto">
-        {phase === 'ready' && (
-          <button
-            onClick={handleArm}
-            className="btn-3d w-full py-5 text-lg uppercase tracking-[0.28em] bg-gradient-to-b from-ink-cyan/95 to-cyan-500/80 text-bg-deep"
-          >
-            Start
-          </button>
-        )}
-        {phase === 'armed' && (
-          <button
-            onClick={handleCancel}
-            className="btn-3d w-full py-5 text-base uppercase tracking-[0.28em] bg-white/10 text-white/80 border border-white/15"
-          >
-            Cancel
-          </button>
-        )}
-        {phase === 'running' && (
-          <div className="w-full py-5 text-center text-sm uppercase tracking-[0.32em] text-ink-cyan/80">
+      <div className="mt-auto min-h-[3.25rem] flex items-center justify-center">
+        {phase === 'armed' ? (
+          <div className="text-center text-[11px] uppercase tracking-[0.4em] text-ink-cyan/70 animate-fadeIn">
+            Touch the shape to start · Lift to stop
+          </div>
+        ) : (
+          <div className="text-center text-sm uppercase tracking-[0.32em] text-ink-cyan/85 animate-fadeIn">
             Lift finger to stop
           </div>
         )}

@@ -161,6 +161,12 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
       )}
 
       {status === 'ready' && (
+        <div className="text-poster text-[10px] tracking-[0.32em] text-splat-paper/55 px-1">
+          {entries.length} {entries.length === 1 ? 'PLAYER' : 'PLAYERS'} ON THE BOARD
+        </div>
+      )}
+
+      {status === 'ready' && (
         <ol className="flex flex-col gap-2">
           {entries.map((e, i) => {
             const rank = i + 1;

@@ -164,6 +164,10 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
         </div>
       )}
 
+      <div className="text-poster text-[11px] tracking-[0.28em] text-splat-yellow bg-splat-black border-2 border-splat-yellow rounded-lg px-3 py-2 text-center">
+        DEBUG · status:{status} · entries:{entries.length} · meRank:{meRank ?? 'null'}
+      </div>
+
       {entries.length > 0 && (
         <div className="text-poster text-[10px] tracking-[0.32em] text-splat-paper/55 px-1">
           {entries.length} {entries.length === 1 ? 'PLAYER' : 'PLAYERS'} ON THE BOARD

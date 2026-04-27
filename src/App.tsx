@@ -17,7 +17,12 @@ import { generateShapePath } from './game/shapes';
 import { scoreAttempt as runScoreAttempt } from './game/scoring';
 import { loadState, resetState, saveState } from './game/storage';
 import { assistStrengthForAttempt } from './game/assist';
-import { submitScore, updateName } from './game/leaderboard';
+import {
+  submitScore,
+  updateName,
+  type LeaderboardEntry,
+} from './game/leaderboard';
+import { gradeFor } from './game/scoring';
 import type { AttemptResult, Point, SavedGameState } from './game/types';
 
 type View = 'name' | 'home' | 'play' | 'leaderboard';
@@ -176,7 +181,7 @@ export default function App() {
     setView('leaderboard');
   }
 
-  function handleSubmitName(name: string) {
+  function handleSignedUp(name: string, _passcode: string) {
     setState((prev) => ({ ...prev, playerName: name }));
     if (stateRef.current.hasCompletedTutorial) {
       setView('home');
@@ -185,17 +190,53 @@ export default function App() {
     }
   }
 
+  function bestsFromLevelScores(
+    scores: Record<string, number>,
+  ): Record<string, AttemptResult> {
+    const out: Record<string, AttemptResult> = {};
+    for (const [challengeId, finalScore] of Object.entries(scores)) {
+      out[challengeId] = {
+        challengeId,
+        shapeScore: 0,
+        timingScore: 0,
+        finalScore,
+        targetTime: 0,
+        actualTime: 0,
+        timeDelta: 0,
+        playerPath: [],
+        targetPath: [],
+        grade: gradeFor(finalScore),
+      };
+    }
+    return out;
+  }
+
+  function handleSignedIn(player: LeaderboardEntry) {
+    setState((prev) => ({
+      ...prev,
+      playerId: player.id,
+      playerName: player.name,
+      hasCompletedTutorial: true,
+      tutorialAttempts: 999,
+      currentChallengeIndex: 0,
+      bestScoresByChallenge: bestsFromLevelScores(player.level_scores ?? {}),
+      previousAttemptByChallenge: {},
+      attemptCountByChallenge: {},
+      currentStreak: 0,
+    }));
+    setIntroDismissed(true);
+    setView('home');
+  }
+
   function handleEditName(name: string) {
     setState((prev) => ({ ...prev, playerName: name }));
     void updateName(stateRef.current.playerId, name);
   }
 
-  function handleResetAll() {
+  function handleSignOut() {
     if (
       typeof window !== 'undefined' &&
-      !window.confirm(
-        'Wipe all progress? Bests, unlocks, streak, tutorial state — everything resets.',
-      )
+      !window.confirm('Sign out? Your progress stays on the leaderboard. Sign back in any time with your handle and passcode.')
     ) {
       return;
     }
@@ -231,8 +272,10 @@ export default function App() {
       <div className={wrapperClass} style={wrapperStyle}>
         <NameEntryScreen
           initialName={state.playerName}
-          mode="first-launch"
-          onSubmit={handleSubmitName}
+          mode="signup"
+          playerId={state.playerId}
+          onSignedUp={handleSignedUp}
+          onSignedIn={handleSignedIn}
         />
       </div>
     );
@@ -259,7 +302,7 @@ export default function App() {
           streak={state.currentStreak}
           playerName={state.playerName}
           onPickChallenge={handlePickChallenge}
-          onResetAll={handleResetAll}
+          onSignOut={handleSignOut}
           onOpenLeaderboard={handleOpenLeaderboard}
           onEditName={handleEditName}
         />

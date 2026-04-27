@@ -28,7 +28,7 @@ interface Props {
   streak: number;
   playerName: string;
   onPickChallenge: (challengeId: string) => void;
-  onResetAll?: () => void;
+  onSignOut?: () => void;
   onOpenLeaderboard?: () => void;
   onEditName?: (name: string) => void;
 }
@@ -41,7 +41,7 @@ export default function HomeScreen({
   streak,
   playerName,
   onPickChallenge,
-  onResetAll,
+  onSignOut,
   onOpenLeaderboard,
   onEditName,
 }: Props) {
@@ -77,7 +77,7 @@ export default function HomeScreen({
       <NameEntryScreen
         initialName={playerName}
         mode="edit"
-        onSubmit={handleSaveName}
+        onSubmitName={handleSaveName}
         onCancel={() => setEditingName(false)}
       />
     );
@@ -313,15 +313,15 @@ export default function HomeScreen({
             Haptics not on this device
           </span>
         )}
-        {onResetAll && (
+        {onSignOut && (
           <button
             onClick={() => {
               sfx.tap();
-              onResetAll();
+              onSignOut();
             }}
             className="btn-sticker-sm px-3 py-1.5 text-[10px] uppercase tracking-[0.24em] bg-splat-yellow text-splat-black font-poster"
           >
-            Reset all
+            Sign out
           </button>
         )}
       </div>

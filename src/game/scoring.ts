@@ -48,6 +48,30 @@ export function scoreAttempt({
 
 const RESAMPLE_N = 64;
 
+function modifiedHausdorff(a: Point[], b: Point[]): number {
+  let aToB = 0;
+  for (const p of a) {
+    let min = Infinity;
+    for (const q of b) {
+      const d = (p.x - q.x) * (p.x - q.x) + (p.y - q.y) * (p.y - q.y);
+      if (d < min) min = d;
+    }
+    aToB += Math.sqrt(min);
+  }
+  let bToA = 0;
+  for (const p of b) {
+    let min = Infinity;
+    for (const q of a) {
+      const d = (p.x - q.x) * (p.x - q.x) + (p.y - q.y) * (p.y - q.y);
+      if (d < min) min = d;
+    }
+    bToA += Math.sqrt(min);
+  }
+  // Symmetric average — penalises both player-drawn segments far from target
+  // AND target segments not covered by the player.
+  return (aToB / a.length + bToA / b.length) / 2;
+}
+
 export function timingScore(actualTime: number, targetTime: number): number {
   return Math.max(0, 100 - Math.abs(actualTime - targetTime) * 32);
 }
@@ -66,6 +90,13 @@ export function scoreShape(
   const closed = isClosedShape(shape);
   let avgDist = 0;
 
+  // Order-independent shape similarity: for each player sample, find the
+  // closest target sample (and vice versa), average the two means. This is
+  // the modified Hausdorff distance — works for any shape including
+  // self-intersecting ones (infinity, figure-8) where parametric ordering
+  // differs between target generator and how a human draws it.
+  const hausdorff = modifiedHausdorff(playerSampled, targetSampled);
+
   if (closed) {
     const { offset, reverse } = bestRotationOffset(playerSampled, targetSampled);
     const seq = reverse ? playerSampled.slice().reverse() : playerSampled;
@@ -75,7 +106,11 @@ export function scoreShape(
       const b = targetSampled[i];
       sum += Math.hypot(a.x - b.x, a.y - b.y);
     }
-    avgDist = sum / RESAMPLE_N;
+    const rotationDist = sum / RESAMPLE_N;
+    // Take whichever metric is more forgiving — Hausdorff for shapes the
+    // player drew in a different parametric direction; rotation-aligned
+    // for sharp polygons where order matters.
+    avgDist = Math.min(rotationDist, hausdorff);
   } else {
     let sumFwd = 0;
     let sumRev = 0;
@@ -90,7 +125,8 @@ export function scoreShape(
         reversed[i].y - targetSampled[i].y,
       );
     }
-    avgDist = Math.min(sumFwd, sumRev) / RESAMPLE_N;
+    const directional = Math.min(sumFwd, sumRev) / RESAMPLE_N;
+    avgDist = Math.min(directional, hausdorff);
   }
 
   let score = Math.max(0, 100 - avgDist * 220);

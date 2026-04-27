@@ -20,7 +20,6 @@ import {
   timingScore,
 } from './game/scoring';
 import { loadState, saveState } from './game/storage';
-import { normalizeToUnit } from './game/pathUtils';
 import type { AttemptResult, Challenge, Point, SavedGameState } from './game/types';
 
 type View = 'home' | 'play' | 'result';
@@ -60,18 +59,6 @@ export default function App() {
     () => generateShapePath(currentChallenge.shape),
     [currentChallenge.shape],
   );
-
-  const ghostUnitPath = useMemo(() => {
-    const prev = state.previousAttemptByChallenge[currentChallenge.id];
-    if (!prev || prev.playerPath.length < 2) return null;
-    return normalizeToUnit(prev.playerPath);
-  }, [currentChallenge.id, state.previousAttemptByChallenge]);
-
-  const bestUnitPath = useMemo(() => {
-    const best = state.bestScoresByChallenge[currentChallenge.id];
-    if (!best || best.playerPath.length < 2) return null;
-    return normalizeToUnit(best.playerPath);
-  }, [currentChallenge.id, state.bestScoresByChallenge]);
 
   const bestScore = state.bestScoresByChallenge[currentChallenge.id]?.finalScore;
   const totalPoints = useMemo(
@@ -201,8 +188,6 @@ export default function App() {
         <ChallengeScreen
           challenge={currentChallenge}
           targetUnitPath={targetUnitPath}
-          ghostUnitPath={ghostUnitPath}
-          bestUnitPath={bestUnitPath}
           showTutorialHints={showTutorialHints}
           showTutorialIntro={showTutorialIntro}
           onDismissIntro={() => setIntroDismissed(true)}

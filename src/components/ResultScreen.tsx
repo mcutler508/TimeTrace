@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { AttemptResult } from '../game/types';
 import ScoreBadge from './ScoreBadge';
 import { scaleNormalizedToCanvas, normalizeToUnit } from '../game/pathUtils';
+import { haptics } from '../game/haptics';
 
 interface Props {
   result: AttemptResult;
@@ -26,6 +27,26 @@ export default function ResultScreen({
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const isBestLocal = bestScore != null && result.finalScore >= bestScore;
+    haptics.forGrade(result.grade);
+    if (isBestLocal && (pointsEarned ?? 0) > 0) {
+      const t = setTimeout(() => haptics.newBest(), 280);
+      const u = unlockedTitle
+        ? setTimeout(() => haptics.unlock(), 700)
+        : null;
+      return () => {
+        clearTimeout(t);
+        if (u) clearTimeout(u);
+      };
+    }
+    if (unlockedTitle) {
+      const u = setTimeout(() => haptics.unlock(), 420);
+      return () => clearTimeout(u);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result.challengeId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -105,7 +126,10 @@ export default function ResultScreen({
       <div className="flex items-center justify-between gap-3">
         {onHome ? (
           <button
-            onClick={onHome}
+            onClick={() => {
+              haptics.micro();
+              onHome();
+            }}
             className="rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.32em] bg-white/10 text-white/75 border border-white/15 active:scale-95"
           >
             ← Home
@@ -168,13 +192,19 @@ export default function ResultScreen({
 
       <div className="grid grid-cols-[2fr_1fr] gap-3">
         <button
-          onClick={onRetry}
+          onClick={() => {
+            haptics.micro();
+            onRetry();
+          }}
           className="btn-3d py-5 text-base uppercase tracking-[0.32em] bg-gradient-to-b from-ink-cyan/95 to-cyan-500/80 text-bg-deep"
         >
           Retry
         </button>
         <button
-          onClick={onNext}
+          onClick={() => {
+            haptics.micro();
+            onNext();
+          }}
           className="btn-3d py-5 text-base uppercase tracking-[0.32em] bg-white/10 text-white border border-white/15"
         >
           Next

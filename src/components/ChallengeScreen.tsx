@@ -3,6 +3,7 @@ import DrawingCanvas, { type DrawingCanvasHandle } from './DrawingCanvas';
 import TutorialHint from './TutorialHint';
 import type { Challenge, Point } from '../game/types';
 import { shapeDisplayName } from '../game/shapes';
+import { haptics } from '../game/haptics';
 
 interface Props {
   challenge: Challenge;
@@ -63,6 +64,7 @@ export default function ChallengeScreen({
     canvasRef.current?.reset();
     setElapsed(0);
     changePhase('armed');
+    haptics.arm();
   }
 
   function handleStrokeStart() {
@@ -92,6 +94,7 @@ export default function ChallengeScreen({
     canvasRef.current?.reset();
     changePhase('ready');
     setElapsed(0);
+    haptics.tap();
   }
 
   const target = challenge.targetTime;
@@ -110,7 +113,10 @@ export default function ChallengeScreen({
       <header className="flex items-center justify-between gap-3">
         {onHome && phase === 'ready' ? (
           <button
-            onClick={onHome}
+            onClick={() => {
+              haptics.micro();
+              onHome();
+            }}
             className="rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.32em] bg-white/10 text-white/75 border border-white/15 active:scale-95"
             aria-label="Back to home"
           >

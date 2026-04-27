@@ -1,6 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, forwardRef } from 'react';
 import type { Point } from '../game/types';
 import { scaleNormalizedToCanvas } from '../game/pathUtils';
+import { haptics } from '../game/haptics';
 
 export interface DrawingCanvasHandle {
   reset(): void;
@@ -182,6 +183,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     drawingRef.current = true;
     pathRef.current = [localPoint(e.nativeEvent)];
+    haptics.start();
     onStrokeStart?.();
     redraw();
   }
@@ -205,6 +207,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     } catch {
       /* noop */
     }
+    haptics.stop();
     onStrokeEnd?.(pathRef.current.slice());
   }
 

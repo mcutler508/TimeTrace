@@ -1,7 +1,14 @@
+import { useState } from 'react';
 import { CHALLENGES, pointsToNextUnlock } from '../game/challenges';
 import type { AttemptResult } from '../game/types';
 import ShapePreview from './ShapePreview';
 import HowItWorks from './HowItWorks';
+import {
+  getHapticsEnabled,
+  haptics,
+  isHapticsSupported,
+  setHapticsEnabled,
+} from '../game/haptics';
 
 interface Props {
   totalPoints: number;
@@ -17,6 +24,15 @@ export default function HomeScreen({
   onPickChallenge,
 }: Props) {
   const { next, needed } = pointsToNextUnlock(totalPoints);
+  const hapticsSupported = isHapticsSupported();
+  const [hapticsOn, setHapticsOn] = useState(getHapticsEnabled());
+
+  function toggleHaptics() {
+    const next = !hapticsOn;
+    setHapticsOn(next);
+    setHapticsEnabled(next);
+    if (next) haptics.tap();
+  }
 
   return (
     <div className="flex flex-col h-full w-full max-w-md mx-auto px-5 pt-6 pb-6 gap-5 overflow-y-auto">
@@ -79,7 +95,11 @@ export default function HomeScreen({
               <button
                 key={c.id}
                 disabled={!unlocked}
-                onClick={() => unlocked && onPickChallenge(c.id)}
+                onClick={() => {
+                  if (!unlocked) return;
+                  haptics.tap();
+                  onPickChallenge(c.id);
+                }}
                 className={`card relative rounded-2xl p-3 text-left transition-transform active:scale-[0.97] ${
                   unlocked
                     ? 'hover:border-ink-cyan/40'
@@ -138,6 +158,27 @@ export default function HomeScreen({
       <p className="text-center text-[11px] text-white/40 mt-2">
         Earn points by setting best scores. Each level's best counts once.
       </p>
+
+      <div className="flex items-center justify-center pb-2">
+        {hapticsSupported ? (
+          <button
+            onClick={toggleHaptics}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-[0.28em] bg-white/5 text-white/65 border border-white/10 active:scale-95"
+            aria-pressed={hapticsOn}
+          >
+            <span
+              className={`inline-block w-1.5 h-1.5 rounded-full ${
+                hapticsOn ? 'bg-ink-cyan shadow-glow-cyan' : 'bg-white/30'
+              }`}
+            />
+            Haptics {hapticsOn ? 'On' : 'Off'}
+          </button>
+        ) : (
+          <span className="text-[10px] uppercase tracking-[0.28em] text-white/30">
+            Haptics not available on this device
+          </span>
+        )}
+      </div>
     </div>
   );
 }

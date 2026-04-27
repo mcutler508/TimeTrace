@@ -1,6 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, forwardRef } from 'react';
 import type { AttemptResult, Point } from '../game/types';
-import { normalizeToUnit, scaleNormalizedToCanvas } from '../game/pathUtils';
+import { scaleNormalizedToCanvas } from '../game/pathUtils';
 import { haptics } from '../game/haptics';
 import { sfx } from '../game/audio';
 import {
@@ -168,8 +168,9 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     if (resultMode && resultPath && resultPath.length > 1) {
       drawNeonPath(ctx, tCanvas, guideHex, 4, Math.min(0.85, guideOpacity * 1.6) * 0.9, false);
 
-      const playerNorm = normalizeToUnit(resultPath);
-      const playerCanvas = scaleNormalizedToCanvas(playerNorm, w, h, 36);
+      // Use the player's actual canvas coordinates so the line shows up exactly
+      // where it was drawn — overlay tells the truth about position vs target.
+      const playerCanvas = resultPath;
       const isPerfect = resultGrade === 'Perfect';
       const isElite = resultGrade === 'Elite';
       if (isPerfect) {
@@ -425,9 +426,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
   function startBurst() {
     cancelBurst();
     if (!resultPath || resultPath.length < 2) return;
-    const { w, h } = sizeRef.current;
-    const playerNorm = normalizeToUnit(resultPath);
-    const playerCanvas = scaleNormalizedToCanvas(playerNorm, w, h, 36);
+    const playerCanvas = resultPath;
     const particles: typeof burstParticlesRef.current = [];
     const count = 72;
     const palette = ['#ff3da4', '#ff7a3d', '#ffe83d', '#a4ff3d', '#3df0ff', '#a44dff', '#fff5e0'];

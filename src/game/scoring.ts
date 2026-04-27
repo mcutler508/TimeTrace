@@ -8,6 +8,44 @@ import {
 } from './pathUtils';
 import { isClosedShape } from './shapes';
 
+export interface ScoreAttemptInput {
+  playerPath: Point[];
+  targetUnitPath: Point[];
+  shape: ShapeType;
+  targetTime: number;
+  elapsed: number;
+  challengeId: string;
+  applyTutorial?: boolean;
+}
+
+export function scoreAttempt({
+  playerPath,
+  targetUnitPath,
+  shape,
+  targetTime,
+  elapsed,
+  challengeId,
+  applyTutorial,
+}: ScoreAttemptInput): AttemptResult {
+  const tShape = scoreShape(playerPath, targetUnitPath, shape);
+  const tTime = Math.round(timingScore(elapsed, targetTime));
+  const final = combineFinalScore(tShape, tTime);
+  let result: AttemptResult = {
+    challengeId,
+    shapeScore: tShape,
+    timingScore: tTime,
+    finalScore: final,
+    targetTime,
+    actualTime: elapsed,
+    timeDelta: elapsed - targetTime,
+    playerPath,
+    targetPath: targetUnitPath,
+    grade: gradeFor(final),
+  };
+  if (applyTutorial) result = applyTutorialBias(result);
+  return result;
+}
+
 const RESAMPLE_N = 64;
 
 export function timingScore(actualTime: number, targetTime: number): number {

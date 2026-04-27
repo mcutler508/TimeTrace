@@ -1,7 +1,13 @@
 import { useEffect, useImperativeHandle, useRef, forwardRef } from 'react';
-import type { Point } from '../game/types';
-import { scaleNormalizedToCanvas } from '../game/pathUtils';
+import type { AttemptResult, Point } from '../game/types';
+import { normalizeToUnit, scaleNormalizedToCanvas } from '../game/pathUtils';
 import { haptics } from '../game/haptics';
+import {
+  ASSIST_TUNING,
+  applyClosure,
+  guideTowardTarget,
+  smoothPoint,
+} from '../game/assist';
 
 export interface DrawingCanvasHandle {
   reset(): void;
@@ -12,8 +18,14 @@ interface Props {
   enabled: boolean;
   targetUnitPath: Point[];
   guideOpacity: number;
-  ghostUnitPath?: Point[] | null;
-  bestUnitPath?: Point[] | null;
+  closedShape?: boolean;
+  assistEnabled?: boolean;
+  assistStrength?: number;
+  resultMode?: boolean;
+  resultPath?: Point[] | null;
+  resultGrade?: AttemptResult['grade'] | null;
+  worstSegment?: { startIdx: number; endIdx: number } | null;
+  perfectBurst?: boolean;
   onStrokeStart?: () => void;
   onStrokeEnd?: (path: Point[]) => void;
   onPointAdded?: (count: number) => void;
@@ -24,25 +36,40 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     enabled,
     targetUnitPath,
     guideOpacity,
-    ghostUnitPath,
-    bestUnitPath,
+    closedShape = true,
+    assistEnabled = true,
+    assistStrength = 1,
+    resultMode = false,
+    resultPath = null,
+    resultGrade = null,
+    worstSegment = null,
+    perfectBurst = false,
     onStrokeStart,
     onStrokeEnd,
-    onPointAdded,
   },
   ref,
 ) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const pathRef = useRef<Point[]>([]);
+  const rawHistoryRef = useRef<Point[]>([]);
   const drawingRef = useRef(false);
+  const onTrackRef = useRef(false);
   const dprRef = useRef(1);
   const sizeRef = useRef({ w: 0, h: 0 });
+  const burstRafRef = useRef<number | null>(null);
+  const burstStartRef = useRef<number>(0);
+  const burstParticlesRef = useRef<
+    { x: number; y: number; vx: number; vy: number; life: number }[]
+  >([]);
 
   useImperativeHandle(ref, () => ({
     reset() {
       pathRef.current = [];
+      rawHistoryRef.current = [];
       drawingRef.current = false;
+      onTrackRef.current = false;
+      cancelBurst();
       redraw();
     },
     getPath() {
@@ -54,7 +81,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     const wrap = wrapRef.current;
     const canvas = canvasRef.current;
     if (!wrap || !canvas) return;
-
     const ro = new ResizeObserver(() => fitCanvas());
     ro.observe(wrap);
     fitCanvas();
@@ -65,7 +91,21 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
   useEffect(() => {
     redraw();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetUnitPath, guideOpacity, ghostUnitPath, bestUnitPath]);
+  }, [
+    targetUnitPath,
+    guideOpacity,
+    resultMode,
+    resultPath,
+    resultGrade,
+    worstSegment,
+  ]);
+
+  useEffect(() => {
+    if (perfectBurst) startBurst();
+    else cancelBurst();
+    return cancelBurst;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perfectBurst, resultPath]);
 
   function fitCanvas() {
     const wrap = wrapRef.current;
@@ -82,6 +122,11 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     redraw();
   }
 
+  function targetCanvasPath(): Point[] {
+    const { w, h } = sizeRef.current;
+    return scaleNormalizedToCanvas(targetUnitPath, w, h);
+  }
+
   function redraw() {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -92,48 +137,58 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
-    if (bestUnitPath && bestUnitPath.length > 1) {
-      drawPath(
+    const tCanvas = targetCanvasPath();
+
+    if (resultMode && resultPath && resultPath.length > 1) {
+      drawSmoothPath(
         ctx,
-        scaleNormalizedToCanvas(bestUnitPath, w, h),
-        'rgba(255, 213, 107, 0.22)',
+        tCanvas,
+        `rgba(180, 220, 255, ${Math.min(0.85, guideOpacity * 1.6)})`,
         2,
-        0,
+        10,
+        'rgba(120, 200, 255, 0.55)',
       );
-    }
-    if (ghostUnitPath && ghostUnitPath.length > 1) {
-      drawPath(
+      const playerNorm = normalizeToUnit(resultPath);
+      const playerCanvas = scaleNormalizedToCanvas(playerNorm, w, h);
+      const isStrong = resultGrade === 'Perfect' || resultGrade === 'Elite';
+      const baseColor = isStrong ? '#ffd56b' : '#00f0ff';
+      drawSmoothPath(ctx, playerCanvas, baseColor, 3, 14, baseColor);
+
+      if (
+        worstSegment &&
+        worstSegment.endIdx > worstSegment.startIdx &&
+        worstSegment.endIdx < playerCanvas.length
+      ) {
+        const slice = playerCanvas.slice(
+          worstSegment.startIdx,
+          worstSegment.endIdx + 1,
+        );
+        drawSmoothPath(ctx, slice, '#ff7a3d', 5, 22, 'rgba(255, 122, 61, 0.85)');
+      }
+    } else {
+      drawSmoothPath(
         ctx,
-        scaleNormalizedToCanvas(ghostUnitPath, w, h),
-        'rgba(160, 107, 255, 0.32)',
+        tCanvas,
+        `rgba(180, 220, 255, ${guideOpacity})`,
         2,
-        0,
+        8,
+        'rgba(120, 200, 255, 0.5)',
       );
+      if (pathRef.current.length > 1) {
+        const blur = onTrackRef.current ? 26 : 18;
+        const glow = onTrackRef.current
+          ? 'rgba(0, 240, 255, 1)'
+          : 'rgba(0, 240, 255, 0.85)';
+        drawSmoothPath(ctx, pathRef.current, '#00f0ff', 4, blur, glow);
+      }
     }
 
-    const targetCanvasPath = scaleNormalizedToCanvas(targetUnitPath, w, h);
-    drawPath(
-      ctx,
-      targetCanvasPath,
-      `rgba(180, 220, 255, ${guideOpacity})`,
-      2,
-      8,
-      'rgba(120, 200, 255, 0.5)',
-    );
-
-    if (pathRef.current.length > 1) {
-      drawPath(
-        ctx,
-        pathRef.current,
-        '#00f0ff',
-        4,
-        18,
-        'rgba(0, 240, 255, 0.85)',
-      );
+    if (burstParticlesRef.current.length > 0) {
+      drawBurst(ctx);
     }
   }
 
-  function drawPath(
+  function drawSmoothPath(
     ctx: CanvasRenderingContext2D,
     pts: Point[],
     stroke: string,
@@ -177,38 +232,135 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     };
   }
 
+  function transformIncoming(raw: Point): { point: Point; onTrack: boolean } {
+    if (!assistEnabled || assistStrength <= 0) {
+      return { point: raw, onTrack: false };
+    }
+    const hist = rawHistoryRef.current;
+    const prev = hist[hist.length - 1] ?? null;
+    const prevPrev = hist[hist.length - 2] ?? null;
+    const smoothed = smoothPoint(raw, prev, prevPrev, assistStrength);
+    const t = targetCanvasPath();
+    const guided = guideTowardTarget(smoothed, t, assistStrength);
+    return { point: guided.point, onTrack: guided.onTrack };
+  }
+
   function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!enabled) return;
+    if (!enabled || resultMode) return;
     e.preventDefault();
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     drawingRef.current = true;
-    pathRef.current = [localPoint(e.nativeEvent)];
+    const raw = localPoint(e.nativeEvent);
+    rawHistoryRef.current = [raw];
+    const { point, onTrack } = transformIncoming(raw);
+    onTrackRef.current = onTrack;
+    pathRef.current = [point];
     haptics.start();
     onStrokeStart?.();
     redraw();
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!enabled || !drawingRef.current) return;
+    if (!enabled || !drawingRef.current || resultMode) return;
     e.preventDefault();
-    const p = localPoint(e.nativeEvent);
-    const last = pathRef.current[pathRef.current.length - 1];
-    if (last && Math.hypot(p.x - last.x, p.y - last.y) < 1.2) return;
-    pathRef.current.push(p);
-    onPointAdded?.(pathRef.current.length);
+    const raw = localPoint(e.nativeEvent);
+    const lastRaw = rawHistoryRef.current[rawHistoryRef.current.length - 1];
+    if (lastRaw && Math.hypot(raw.x - lastRaw.x, raw.y - lastRaw.y) < 1.2) return;
+    rawHistoryRef.current.push(raw);
+    if (rawHistoryRef.current.length > 4) rawHistoryRef.current.shift();
+    const { point, onTrack } = transformIncoming(raw);
+    onTrackRef.current = onTrack;
+    pathRef.current.push(point);
     redraw();
   }
 
   function onPointerEnd(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!drawingRef.current) return;
     drawingRef.current = false;
+    onTrackRef.current = false;
     try {
       (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
     } catch {
       /* noop */
     }
+    let finalPath = pathRef.current.slice();
+    if (assistEnabled && closedShape && assistStrength > 0) {
+      finalPath = applyClosure(
+        finalPath,
+        ASSIST_TUNING.closureThresholdPx * assistStrength,
+      );
+      pathRef.current = finalPath;
+    }
     haptics.stop();
-    onStrokeEnd?.(pathRef.current.slice());
+    onStrokeEnd?.(finalPath);
+  }
+
+  function startBurst() {
+    cancelBurst();
+    if (!resultPath || resultPath.length < 2) return;
+    const { w, h } = sizeRef.current;
+    const playerNorm = normalizeToUnit(resultPath);
+    const playerCanvas = scaleNormalizedToCanvas(playerNorm, w, h);
+    const particles: { x: number; y: number; vx: number; vy: number; life: number }[] = [];
+    const count = 36;
+    for (let i = 0; i < count; i++) {
+      const idx = Math.floor((i / count) * playerCanvas.length);
+      const p = playerCanvas[Math.min(playerCanvas.length - 1, idx)];
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 60 + Math.random() * 90;
+      particles.push({
+        x: p.x,
+        y: p.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0,
+      });
+    }
+    burstParticlesRef.current = particles;
+    burstStartRef.current = performance.now();
+    const tick = () => {
+      const elapsed = (performance.now() - burstStartRef.current) / 1000;
+      if (elapsed > 0.7) {
+        burstParticlesRef.current = [];
+        burstRafRef.current = null;
+        redraw();
+        return;
+      }
+      for (const p of burstParticlesRef.current) {
+        p.x += p.vx * 0.016;
+        p.y += p.vy * 0.016;
+        p.vx *= 0.94;
+        p.vy *= 0.94;
+        p.life = elapsed;
+      }
+      redraw();
+      burstRafRef.current = requestAnimationFrame(tick);
+    };
+    burstRafRef.current = requestAnimationFrame(tick);
+  }
+
+  function cancelBurst() {
+    if (burstRafRef.current != null) {
+      cancelAnimationFrame(burstRafRef.current);
+      burstRafRef.current = null;
+    }
+    burstParticlesRef.current = [];
+  }
+
+  function drawBurst(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    for (const p of burstParticlesRef.current) {
+      const t = Math.min(1, p.life / 0.7);
+      const alpha = 1 - t;
+      ctx.fillStyle = `rgba(255, 213, 107, ${alpha})`;
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = `rgba(255, 213, 107, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    ctx.shadowBlur = 0;
   }
 
   return (

@@ -69,6 +69,34 @@
   }
 }
 
+.perfect-lock {
+  background: radial-gradient(
+    ellipse at top,
+    rgba(40, 12, 64, 0.85) 0%,
+    rgba(8, 6, 24, 0.95) 60%,
+    rgba(2, 2, 12, 1) 100%
+  );
+}
+
+.perfect-freeze {
+  animation: perfectFreeze 220ms ease-out;
+}
+
+@keyframes perfectFreeze {
+  0% { filter: brightness(1) saturate(1); }
+  35% { filter: brightness(1.18) saturate(1.15); transform: scale(1.005); }
+  100% { filter: brightness(1) saturate(1); }
+}
+
+.timer-pulse {
+  animation: timerPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.001ms !important;

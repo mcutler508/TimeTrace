@@ -8,6 +8,7 @@ const DEFAULT_STATE: SavedGameState = {
   currentChallengeIndex: 0,
   bestScoresByChallenge: {},
   previousAttemptByChallenge: {},
+  attemptCountByChallenge: {},
   currentStreak: 0,
 };
 

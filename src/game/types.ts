@@ -37,5 +37,6 @@ export interface SavedGameState {
   currentChallengeIndex: number;
   bestScoresByChallenge: Record<string, AttemptResult>;
   previousAttemptByChallenge: Record<string, AttemptResult>;
+  attemptCountByChallenge: Record<string, number>;
   currentStreak: number;
 }

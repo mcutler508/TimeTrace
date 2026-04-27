@@ -184,10 +184,10 @@ export default function ChallengeScreen({
   const inPerfectLock = phase === 'armed' && (previousScore ?? 0) >= 85;
   const closedShape = isClosedShape(challenge.shape);
 
-  const barProgress = (() => {
-    if (phase === 'running') return Math.min(1.4, elapsed / Math.max(target, 0.001));
-    if (phase === 'result' && result) return Math.min(1.4, result.actualTime / Math.max(target, 0.001));
-    return 0;
+  const cursorDelta = (() => {
+    if (phase === 'running') return elapsed - target;
+    if (phase === 'result' && result) return result.timeDelta;
+    return null;
   })();
 
   return (
@@ -333,71 +333,197 @@ export default function ChallengeScreen({
         )}
       </div>
 
-      <div className="relative h-12 flex flex-col justify-center">
-        <TimingBar
-          progress={barProgress}
-          phase={phase}
-          warmth={warmth}
-          timeDelta={result?.timeDelta ?? null}
-        />
-        <div className="text-poster text-center text-[10px] tracking-[0.32em] text-splat-paper/55 mt-2 animate-fadeIn">
-          {phase === 'armed' && 'TOUCH SHAPE · LIFT TO STOP'}
-          {phase === 'running' && 'HOLD FOR THE PERFECT MOMENT'}
-          {phase === 'result' && 'RETRY · NEXT'}
-        </div>
-      </div>
+      <TimingScope
+        phase={phase}
+        target={target}
+        cursorDelta={cursorDelta}
+        hintText={
+          phase === 'armed'
+            ? 'TOUCH SHAPE · LIFT TO STOP'
+            : phase === 'running'
+            ? 'STOP IN THE PERFECT BAND'
+            : 'RETRY · NEXT'
+        }
+      />
     </div>
   );
 }
 
-function TimingBar({
-  progress,
-  phase,
-  warmth,
-  timeDelta,
-}: {
-  progress: number;
-  phase: Phase;
-  warmth: number;
-  timeDelta: number | null;
-}) {
-  const targetMarkPos = '50%';
-  const fillPct = Math.min(100, (progress / 1.4) * 100);
-  const isWarm = warmth > 0.4;
-  const fillColor = isWarm
-    ? 'linear-gradient(90deg, #3df0ff 0%, #a4ff3d 40%, #ffe83d 70%, #ff7a3d 100%)'
-    : 'linear-gradient(90deg, #3df0ff 0%, #a44dff 100%)';
+const SCOPE_RANGE = 1.5;
 
-  const deltaPos =
-    phase === 'result' && timeDelta != null
-      ? Math.max(0, Math.min(100, 50 + (timeDelta / 0.8) * 50 * (50 / 70)))
-      : null;
+function deltaToPct(delta: number): number {
+  return Math.max(0, Math.min(100, ((delta + SCOPE_RANGE) / (SCOPE_RANGE * 2)) * 100));
+}
+
+interface ScopeZone {
+  from: number;
+  to: number;
+  fill: string;
+}
+
+const SCOPE_ZONES: ScopeZone[] = [
+  { from: -SCOPE_RANGE, to: -1.05, fill: 'rgba(255, 61, 164, 0.18)' },
+  { from: -1.05, to: -0.55, fill: 'rgba(255, 245, 224, 0.08)' },
+  { from: -0.55, to: -0.25, fill: 'rgba(61, 240, 255, 0.18)' },
+  { from: -0.25, to: -0.05, fill: 'rgba(164, 255, 61, 0.24)' },
+  { from: -0.05, to: 0.05, fill: 'rgba(255, 232, 61, 0.55)' },
+  { from: 0.05, to: 0.25, fill: 'rgba(164, 255, 61, 0.24)' },
+  { from: 0.25, to: 0.55, fill: 'rgba(61, 240, 255, 0.18)' },
+  { from: 0.55, to: 1.05, fill: 'rgba(255, 245, 224, 0.08)' },
+  { from: 1.05, to: SCOPE_RANGE, fill: 'rgba(255, 61, 164, 0.18)' },
+];
+
+function gradeFromDelta(delta: number): { label: string; color: string } {
+  const abs = Math.abs(delta);
+  if (abs < 0.05) return { label: 'PERFECT', color: '#ffe83d' };
+  if (abs < 0.25) return { label: 'ELITE', color: '#a4ff3d' };
+  if (abs < 0.55) return { label: 'GREAT', color: '#3df0ff' };
+  if (abs < 1.05) return { label: 'CLOSE', color: '#fff5e0' };
+  return { label: 'MISS', color: '#ff3da4' };
+}
+
+function TimingScope({
+  phase,
+  target,
+  cursorDelta,
+  hintText,
+}: {
+  phase: Phase;
+  target: number;
+  cursorDelta: number | null;
+  hintText: string;
+}) {
+  const inPerfect = cursorDelta != null && Math.abs(cursorDelta) < 0.05;
+  const inElite = cursorDelta != null && Math.abs(cursorDelta) < 0.25;
+  const liveGrade = cursorDelta != null ? gradeFromDelta(cursorDelta) : null;
+
+  const showCursor = phase !== 'armed' && cursorDelta != null;
+  const cursorPct = showCursor ? deltaToPct(cursorDelta!) : 50;
+  const cursorIsLate = (cursorDelta ?? 0) > 0;
 
   return (
-    <div className="relative h-2.5 w-full rounded-full bg-splat-black border-2 border-splat-paper/30 overflow-hidden">
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between px-1">
+        <div className="text-poster text-[10px] tracking-[0.28em] text-splat-paper/55">
+          TIMING SCOPE
+        </div>
+        {liveGrade && phase !== 'armed' ? (
+          <div
+            className={`text-poster text-[11px] tracking-[0.18em] ${
+              inPerfect ? 'animate-pulse' : ''
+            }`}
+            style={{ color: liveGrade.color }}
+          >
+            {liveGrade.label}
+          </div>
+        ) : (
+          <div className="text-poster text-[10px] tracking-[0.28em] text-splat-yellow">
+            ★ AIM CENTER
+          </div>
+        )}
+      </div>
+
       <div
-        className="absolute inset-y-0 left-0 transition-[width] duration-75"
-        style={{
-          width: `${fillPct}%`,
-          background: fillColor,
-          boxShadow: isWarm
-            ? '0 0 18px rgba(255, 232, 61, 0.85)'
-            : '0 0 12px rgba(61, 240, 255, 0.55)',
-        }}
-      />
-      <div
-        className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-splat-paper rounded-full"
-        style={{ left: targetMarkPos, boxShadow: '0 0 8px rgba(255,245,224,0.75)' }}
-      />
-      {deltaPos != null && (
+        className={`relative h-14 bg-splat-black border-2 border-splat-paper/35 rounded-xl overflow-hidden transition-shadow duration-150 ${
+          inPerfect ? 'shadow-glow-gold' : inElite ? 'shadow-glow-lime' : ''
+        }`}
+        style={
+          inPerfect
+            ? { boxShadow: 'inset 0 0 24px rgba(255, 232, 61, 0.45)' }
+            : undefined
+        }
+      >
+        {SCOPE_ZONES.map((z, i) => (
+          <div
+            key={i}
+            className="absolute top-0 bottom-0"
+            style={{
+              left: `${deltaToPct(z.from)}%`,
+              width: `${deltaToPct(z.to) - deltaToPct(z.from)}%`,
+              background: z.fill,
+            }}
+          />
+        ))}
+
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-splat-yellow border-2 border-splat-black animate-fadeIn"
-          style={{
-            left: `${deltaPos}%`,
-            boxShadow: '0 0 12px rgba(255, 232, 61, 0.85)',
-          }}
+          className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[3px] bg-splat-paper rounded-full"
+          style={{ boxShadow: '0 0 14px rgba(255,232,61,0.95)' }}
         />
-      )}
+
+        <div className="absolute inset-0 flex items-center justify-between px-2 pointer-events-none">
+          <span className="text-poster text-[9px] tracking-[0.18em] text-splat-pink/60">
+            EARLY
+          </span>
+          <span
+            className={`text-poster text-[9px] tracking-[0.22em] ${
+              inPerfect ? 'text-splat-yellow' : 'text-splat-yellow/55'
+            }`}
+          >
+            PERFECT
+          </span>
+          <span className="text-poster text-[9px] tracking-[0.18em] text-splat-pink/60">
+            LATE
+          </span>
+        </div>
+
+        {showCursor && (
+          <div
+            className="absolute top-0 bottom-0 transition-[left] duration-75"
+            style={{ left: `${cursorPct}%`, transform: 'translateX(-50%)' }}
+          >
+            <div
+              className={`absolute top-1/2 -translate-y-1/2 w-1.5 h-12 rounded-full ${
+                inPerfect
+                  ? 'bg-splat-yellow'
+                  : inElite
+                  ? 'bg-splat-lime'
+                  : cursorIsLate
+                  ? 'bg-splat-pink'
+                  : 'bg-splat-cyan'
+              }`}
+              style={{
+                boxShadow: inPerfect
+                  ? '0 0 22px rgba(255,232,61,1), 0 0 6px rgba(255,232,61,1)'
+                  : inElite
+                  ? '0 0 16px rgba(164,255,61,0.9)'
+                  : cursorIsLate
+                  ? '0 0 14px rgba(255,61,164,0.85)'
+                  : '0 0 14px rgba(61,240,255,0.85)',
+              }}
+            />
+            <div
+              className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-t-[8px]"
+              style={{
+                borderTopColor: inPerfect
+                  ? '#ffe83d'
+                  : inElite
+                  ? '#a4ff3d'
+                  : cursorIsLate
+                  ? '#ff3da4'
+                  : '#3df0ff',
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between px-1">
+        <span className="text-poster text-[9px] tracking-[0.22em] text-splat-paper/45">
+          {phase === 'result' && cursorDelta != null
+            ? `${cursorDelta >= 0 ? '+' : '−'}${Math.abs(cursorDelta).toFixed(2)}s`
+            : '−1.5s'}
+        </span>
+        <span className="text-poster text-[9px] tracking-[0.22em] text-splat-yellow">
+          TARGET {target.toFixed(2)}s
+        </span>
+        <span className="text-poster text-[9px] tracking-[0.22em] text-splat-paper/45">
+          +1.5s
+        </span>
+      </div>
+
+      <div className="text-poster text-center text-[10px] tracking-[0.32em] text-splat-paper/55 mt-0.5 animate-fadeIn">
+        {hintText}
+      </div>
     </div>
   );
 }

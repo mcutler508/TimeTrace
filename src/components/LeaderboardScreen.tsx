@@ -16,12 +16,6 @@ interface Props {
 
 type Status = 'loading' | 'ready' | 'error' | 'empty' | 'unconfigured';
 
-const RANK_TROPHY: Record<number, { bg: string; text: string; label: string }> = {
-  1: { bg: 'bg-splat-yellow', text: 'text-splat-black', label: '1' },
-  2: { bg: 'bg-splat-cyan', text: 'text-splat-black', label: '2' },
-  3: { bg: 'bg-splat-lime', text: 'text-splat-black', label: '3' },
-};
-
 export default function LeaderboardScreen({ playerId, playerName, onHome }: Props) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [status, setStatus] = useState<Status>('loading');
@@ -224,57 +218,90 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 8,
+          gap: 10,
           listStyle: 'none',
           padding: 0,
           margin: 0,
         }}
       >
-          {entries.map((e, i) => {
-            const rank = i + 1;
-            const isMe = e.id === playerId;
-            const trophy = RANK_TROPHY[rank];
-            return (
-              <li
-                key={e.id}
-                className={`flex items-center gap-3 rounded-xl border-2 px-3 py-2.5 transition-colors ${
-                  isMe
-                    ? 'border-splat-yellow bg-splat-yellow/10'
-                    : 'border-splat-paper/15 bg-splat-paper/5'
-                }`}
+        {entries.map((e, i) => {
+          const rank = i + 1;
+          const isMe = e.id === playerId;
+          const trophyBg =
+            rank === 1 ? '#ffe83d' : rank === 2 ? '#3df0ff' : rank === 3 ? '#a4ff3d' : '#2a2240';
+          const trophyText = rank <= 3 ? '#0a0708' : '#fff5e0';
+          return (
+            <li
+              key={e.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '12px 14px',
+                borderRadius: 14,
+                border: isMe ? '2px solid #ffe83d' : '2px solid rgba(255,245,224,0.18)',
+                background: isMe ? 'rgba(255,232,61,0.12)' : 'rgba(255,245,224,0.05)',
+                fontFamily: '"Bungee", Impact, system-ui, sans-serif',
+                color: '#fff5e0',
+              }}
+            >
+              <div
+                style={{
+                  flex: '0 0 auto',
+                  width: 38,
+                  height: 38,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 10,
+                  border: '2px solid #0a0708',
+                  background: trophyBg,
+                  color: trophyText,
+                  fontWeight: 700,
+                  fontSize: 14,
+                }}
               >
+                {rank}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div
-                  className={`flex items-center justify-center w-9 h-9 rounded-lg border-2 border-splat-black ${
-                    trophy ? trophy.bg + ' ' + trophy.text : 'bg-splat-paper/10 text-splat-paper'
-                  }`}
+                  style={{
+                    fontSize: 15,
+                    lineHeight: 1.1,
+                    color: isMe ? '#ffe83d' : '#fff5e0',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
                 >
-                  <span className="text-poster text-sm tabular-nums">
-                    {trophy ? trophy.label : rank}
-                  </span>
+                  {e.name}
+                  {isMe && (
+                    <span style={{ fontSize: 10, marginLeft: 8, opacity: 0.85 }}>YOU</span>
+                  )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div
-                    className={`text-poster text-sm leading-tight truncate ${
-                      isMe ? 'text-splat-yellow text-glow-gold' : 'text-splat-paper'
-                    }`}
-                  >
-                    {e.name}
-                    {isMe && (
-                      <span className="ml-2 text-[9px] tracking-[0.2em] text-splat-yellow/85">
-                        YOU
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[10px] text-splat-paper/55 font-poster tracking-[0.18em]">
-                    Streak {e.best_streak}
-                  </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: 'rgba(255,245,224,0.55)',
+                    letterSpacing: '0.1em',
+                    marginTop: 2,
+                  }}
+                >
+                  Streak {e.best_streak}
                 </div>
-                <div className="text-poster text-lg text-splat-paper tabular-nums">
-                  {e.total_points}
-                </div>
-              </li>
-            );
-          })}
+              </div>
+              <div
+                style={{
+                  fontSize: 18,
+                  fontVariantNumeric: 'tabular-nums',
+                  color: '#fff5e0',
+                }}
+              >
+                {e.total_points}
+              </div>
+            </li>
+          );
+        })}
       </ol>
 
       {entries.length > 0 && meRank != null && !meInTopList && (

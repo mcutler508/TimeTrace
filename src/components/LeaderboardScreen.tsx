@@ -253,45 +253,93 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
         RAW PROBE (no supabase-js): {rawFetch}
       </div>
 
-      <div style={{ display: 'block', width: '100%' }}>
-        {entries.map((e, i) => (
-          <div
-            key={e.id}
-            style={{
-              display: 'block',
-              width: '100%',
-              minHeight: 60,
-              padding: '14px 16px',
-              marginBottom: 10,
-              borderRadius: 12,
-              border: '3px solid #ffe83d',
-              background: '#1a0e2e',
-              color: '#fff5e0',
-              fontFamily: 'system-ui, sans-serif',
-              fontSize: 18,
-              fontWeight: 700,
-              boxSizing: 'border-box',
-            }}
-          >
-            #{i + 1} · {e.name} · {e.total_points} pts · streak {e.best_streak}
-            {e.id === playerId ? ' ← YOU' : ''}
-          </div>
-        ))}
-        {entries.length === 0 && (
-          <div
-            style={{
-              padding: 16,
-              border: '3px solid #ff3da4',
-              background: '#1a0e2e',
-              color: '#ff3da4',
-              fontFamily: 'system-ui, sans-serif',
-              fontWeight: 700,
-            }}
-          >
-            ENTRIES ARRAY IS EMPTY IN RENDER (but debug bar might say otherwise)
-          </div>
-        )}
+      {/* Debug A: raw JSON dump of entries */}
+      <pre
+        style={{
+          background: '#000',
+          color: '#0f0',
+          padding: 10,
+          fontSize: 10,
+          fontFamily: 'monospace',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-all',
+          margin: 0,
+        }}
+      >
+        ENTRIES JSON: {JSON.stringify(entries.map((e) => ({ id: e.id, name: e.name, pts: e.total_points })))}
+      </pre>
+
+      {/* Debug B: comma-joined string */}
+      <div
+        style={{
+          background: '#330033',
+          color: '#ff66ff',
+          padding: 10,
+          fontFamily: 'monospace',
+          fontSize: 12,
+          fontWeight: 700,
+        }}
+      >
+        JOINED: {entries.map((e) => `${e.name}(${e.total_points})`).join(' | ') || 'EMPTY'}
       </div>
+
+      {/* Debug C: forEach pushing into raw HTML elements via array of strings */}
+      <div
+        style={{
+          background: '#003300',
+          color: '#66ff66',
+          padding: 10,
+          fontFamily: 'monospace',
+          fontSize: 12,
+          fontWeight: 700,
+        }}
+      >
+        {(() => {
+          const lines: string[] = [];
+          entries.forEach((e, i) => lines.push(`Line ${i}: ${e.name} = ${e.total_points}`));
+          return lines.length === 0 ? 'NO LINES' : lines.join(' / ');
+        })()}
+      </div>
+
+      {/* Debug D: the actual list, rendered with .map */}
+      {entries.map((e, i) => (
+        <div
+          key={e.id}
+          style={{
+            display: 'block',
+            width: '100%',
+            minHeight: 60,
+            padding: '14px 16px',
+            marginBottom: 10,
+            borderRadius: 12,
+            border: '3px solid #ffe83d',
+            background: '#1a0e2e',
+            color: '#fff5e0',
+            fontFamily: 'system-ui, sans-serif',
+            fontSize: 18,
+            fontWeight: 700,
+            boxSizing: 'border-box',
+          }}
+        >
+          MAP-{i}: #{i + 1} · {e.name} · {e.total_points} pts · streak {e.best_streak}
+          {e.id === playerId ? ' ← YOU' : ''}
+        </div>
+      ))}
+
+      {entries.length === 0 && (
+        <div
+          style={{
+            padding: 16,
+            border: '3px solid #ff3da4',
+            background: '#1a0e2e',
+            color: '#ff3da4',
+            fontFamily: 'system-ui, sans-serif',
+            fontWeight: 700,
+          }}
+        >
+          ENTRIES ARRAY IS EMPTY IN RENDER (but debug bar might say otherwise)
+        </div>
+      )}
 
       {entries.length > 0 && meRank != null && !meInTopList && (
         <div className="sticky bottom-2 mt-2 card-sticker px-3 py-2.5 flex items-center gap-3">

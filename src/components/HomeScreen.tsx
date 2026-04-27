@@ -19,6 +19,7 @@ interface Props {
   bestScores: Record<string, AttemptResult>;
   streak: number;
   onPickChallenge: (challengeId: string) => void;
+  onResetAll?: () => void;
 }
 
 const TILE_TILTS = ['-rotate-1', 'rotate-1', '-rotate-[2deg]', 'rotate-[2deg]', '-rotate-1', 'rotate-1'];
@@ -28,6 +29,7 @@ export default function HomeScreen({
   bestScores,
   streak,
   onPickChallenge,
+  onResetAll,
 }: Props) {
   const { next, needed } = pointsToNextUnlock(totalPoints);
   const hapticsSupported = isHapticsSupported();
@@ -188,15 +190,15 @@ export default function HomeScreen({
         Earn points by setting best scores. Each level's best counts once.
       </p>
 
-      <div className="flex items-center justify-center pb-2 mt-auto">
+      <div className="flex items-center justify-center gap-3 pb-2 mt-auto flex-wrap">
         {hapticsSupported ? (
           <button
             onClick={toggleHaptics}
-            className="btn-sticker-sm px-3 py-1.5 text-[10px] uppercase tracking-[0.24em] bg-splat-paper text-splat-black font-bold flex items-center gap-2"
+            className="btn-sticker-sm px-3 py-1.5 text-[10px] uppercase tracking-[0.24em] bg-splat-yellow text-splat-black font-poster flex items-center gap-2"
             aria-pressed={hapticsOn}
           >
             <span
-              className={`inline-block w-2 h-2 rounded-full ${
+              className={`inline-block w-2 h-2 rounded-full border border-splat-black ${
                 hapticsOn ? 'bg-splat-pink' : 'bg-splat-black/30'
               }`}
             />
@@ -206,6 +208,14 @@ export default function HomeScreen({
           <span className="text-[10px] uppercase tracking-[0.24em] text-splat-paper/30">
             Haptics not on this device
           </span>
+        )}
+        {onResetAll && (
+          <button
+            onClick={onResetAll}
+            className="btn-sticker-sm px-3 py-1.5 text-[10px] uppercase tracking-[0.24em] bg-splat-yellow text-splat-black font-poster"
+          >
+            Reset all
+          </button>
         )}
       </div>
     </div>

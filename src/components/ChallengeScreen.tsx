@@ -203,7 +203,7 @@ export default function ChallengeScreen({
               haptics.micro();
               onHome();
             }}
-            className="btn-sticker-sm px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] font-poster bg-splat-paper text-splat-black"
+            className="btn-sticker-sm px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] font-poster bg-splat-yellow text-splat-black"
             aria-label="Back to home"
           >
             ← HOME

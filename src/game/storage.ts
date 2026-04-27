@@ -41,3 +41,14 @@ export function saveState(state: SavedGameState) {
 export function defaultState(): SavedGameState {
   return { ...DEFAULT_STATE };
 }
+
+export function resetState(): SavedGameState {
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.removeItem(KEY);
+    } catch {
+      /* noop */
+    }
+  }
+  return { ...DEFAULT_STATE };
+}

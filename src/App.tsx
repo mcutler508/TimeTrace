@@ -13,7 +13,7 @@ import {
 } from './game/challenges';
 import { generateShapePath } from './game/shapes';
 import { scoreAttempt as runScoreAttempt } from './game/scoring';
-import { loadState, saveState } from './game/storage';
+import { loadState, resetState, saveState } from './game/storage';
 import { assistStrengthForAttempt } from './game/assist';
 import type { AttemptResult, Point, SavedGameState } from './game/types';
 
@@ -139,6 +139,21 @@ export default function App() {
     setView('home');
   }
 
+  function handleResetAll() {
+    if (
+      typeof window !== 'undefined' &&
+      !window.confirm(
+        'Wipe all progress? Bests, unlocks, streak, tutorial state — everything resets.',
+      )
+    ) {
+      return;
+    }
+    const fresh = resetState();
+    setState(fresh);
+    setIntroDismissed(false);
+    setView('play');
+  }
+
   function handlePickChallenge(id: string) {
     const idx = findChallengeIndex(id);
     if (idx < 0) return;
@@ -166,6 +181,7 @@ export default function App() {
           bestScores={state.bestScoresByChallenge}
           streak={state.currentStreak}
           onPickChallenge={handlePickChallenge}
+          onResetAll={handleResetAll}
         />
       </div>
     );

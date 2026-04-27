@@ -159,7 +159,8 @@ export default function App() {
 
   if (view === 'home' && canGoHome) {
     return (
-      <div className="w-full max-w-md mx-auto h-[100dvh] flex flex-col">
+      <div className="w-full max-w-md mx-auto min-h-screen flex flex-col"
+         style={{ minHeight: '100dvh' }}>
         <HomeScreen
           totalPoints={totalPoints}
           bestScores={state.bestScoresByChallenge}
@@ -171,7 +172,8 @@ export default function App() {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto h-[100dvh] flex flex-col">
+    <div className="w-full max-w-md mx-auto min-h-screen flex flex-col"
+         style={{ minHeight: '100dvh' }}>
       <ChallengeScreen
         challenge={currentChallenge}
         targetUnitPath={targetUnitPath}

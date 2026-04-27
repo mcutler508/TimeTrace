@@ -12,9 +12,15 @@ export default function TutorialHint({ show, targetTime, variant = 'pill', onDis
 
   if (variant === 'intro') {
     return (
-      <div className="absolute inset-0 z-10 flex items-center justify-center p-5 animate-fadeIn">
-        <div className="absolute inset-0 bg-bg-deep/85 backdrop-blur-sm" />
-        <div className="relative card-sticker px-5 py-5 max-w-[18rem] flex flex-col gap-4 -rotate-1">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-5 animate-fadeIn overflow-y-auto"
+        onClick={onDismiss}
+      >
+        <div className="fixed inset-0 bg-bg-deep/90 backdrop-blur-sm" />
+        <div
+          className="relative card-sticker px-5 py-5 w-full max-w-[20rem] max-h-[90vh] overflow-y-auto flex flex-col gap-4 -rotate-1 my-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div>
             <div className="text-poster text-[10px] tracking-[0.32em] text-splat-yellow">
               TUTORIAL
@@ -29,6 +35,12 @@ export default function TutorialHint({ show, targetTime, variant = 'pill', onDis
             className="btn-sticker py-3 text-poster text-sm tracking-[0.18em] bg-splat-yellow text-splat-black"
           >
             GOT IT
+          </button>
+          <button
+            onClick={onDismiss}
+            className="text-[10px] uppercase tracking-[0.32em] text-splat-paper/45 mt-1"
+          >
+            tap outside to dismiss
           </button>
         </div>
       </div>

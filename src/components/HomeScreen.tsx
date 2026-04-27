@@ -41,7 +41,7 @@ export default function HomeScreen({
   }
 
   return (
-    <div className="flex flex-col h-full w-full max-w-md mx-auto px-5 pt-8 pb-6 gap-6 overflow-y-auto">
+    <div className="flex flex-col flex-1 w-full max-w-md mx-auto px-5 pt-8 pb-6 gap-6 overflow-y-auto">
       <header className="flex items-end justify-between gap-3">
         <div>
           <div className="text-poster text-[11px] tracking-[0.3em] text-splat-yellow text-glow-gold">

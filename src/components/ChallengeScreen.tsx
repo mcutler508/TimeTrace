@@ -192,7 +192,7 @@ export default function ChallengeScreen({
 
   return (
     <div
-      className={`relative flex flex-col h-full w-full max-w-md mx-auto px-5 pt-5 pb-5 gap-4 transition-colors duration-300 ${
+      className={`relative flex flex-col flex-1 w-full max-w-md mx-auto px-5 pt-5 pb-5 gap-4 transition-colors duration-300 ${
         inPerfectLock ? 'perfect-lock' : ''
       } ${perfectFreeze ? 'perfect-freeze' : ''} ${missFlicker ? 'miss-flicker' : ''}`}
     >

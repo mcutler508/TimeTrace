@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ChallengeScreen from './components/ChallengeScreen';
 import ResultScreen from './components/ResultScreen';
-import { CHALLENGES, TUTORIAL_CHALLENGE, challengeAt } from './game/challenges';
+import HomeScreen from './components/HomeScreen';
+import {
+  CHALLENGES,
+  TUTORIAL_CHALLENGE,
+  challengeAt,
+  findChallengeIndex,
+  isChallengeUnlocked,
+  nextUnlockedIndex,
+  totalPointsFromBests,
+} from './game/challenges';
 import { generateShapePath } from './game/shapes';
 import {
   applyTutorialBias,
@@ -14,14 +23,26 @@ import { loadState, saveState } from './game/storage';
 import { normalizeToUnit } from './game/pathUtils';
 import type { AttemptResult, Challenge, Point, SavedGameState } from './game/types';
 
-type View = 'play' | 'result';
+type View = 'home' | 'play' | 'result';
 
 const TUTORIAL_HINT_LIMIT = 2;
 
+interface ResultCtx {
+  pointsEarned: number;
+  unlockedTitle: string | null;
+}
+
 export default function App() {
   const [state, setState] = useState<SavedGameState>(() => loadState());
-  const [view, setView] = useState<View>('play');
+  const [view, setView] = useState<View>(() => {
+    const initial = loadState();
+    return initial.hasCompletedTutorial ? 'home' : 'play';
+  });
   const [lastResult, setLastResult] = useState<AttemptResult | null>(null);
+  const [resultCtx, setResultCtx] = useState<ResultCtx>({
+    pointsEarned: 0,
+    unlockedTitle: null,
+  });
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -52,6 +73,10 @@ export default function App() {
   }, [currentChallenge.id, state.bestScoresByChallenge]);
 
   const bestScore = state.bestScoresByChallenge[currentChallenge.id]?.finalScore;
+  const totalPoints = useMemo(
+    () => totalPointsFromBests(state.bestScoresByChallenge),
+    [state.bestScoresByChallenge],
+  );
 
   function handleSubmit(playerPath: Point[], elapsed: number) {
     const tShape = scoreShape(playerPath, targetUnitPath, currentChallenge.shape);
@@ -71,11 +96,23 @@ export default function App() {
     };
     if (inTutorial) result = applyTutorialBias(result);
 
+    const prevBests = stateRef.current.bestScoresByChallenge;
+    const prevBestEntry = prevBests[currentChallenge.id];
+    const prevBestScore = prevBestEntry?.finalScore ?? 0;
+    const isNewBest = result.finalScore > prevBestScore;
+    const pointsEarned = isNewBest ? result.finalScore - prevBestScore : 0;
+
+    const prevTotal = totalPointsFromBests(prevBests);
+    const nextTotal = prevTotal + pointsEarned;
+    const newlyUnlocked = CHALLENGES.find(
+      (c) =>
+        c.unlockThreshold > prevTotal &&
+        c.unlockThreshold <= nextTotal,
+    );
+
     setState((prev) => {
       const id = currentChallenge.id;
-      const prevBest = prev.bestScoresByChallenge[id];
-      const nextBest =
-        !prevBest || result.finalScore > prevBest.finalScore ? result : prevBest;
+      const nextBest = isNewBest ? result : prev.bestScoresByChallenge[id];
       const tutorialAttempts = inTutorial ? prev.tutorialAttempts + 1 : prev.tutorialAttempts;
       const completedTutorial =
         prev.hasCompletedTutorial ||
@@ -87,12 +124,18 @@ export default function App() {
         ...prev,
         hasCompletedTutorial: completedTutorial,
         tutorialAttempts,
-        bestScoresByChallenge: { ...prev.bestScoresByChallenge, [id]: nextBest },
+        bestScoresByChallenge: nextBest
+          ? { ...prev.bestScoresByChallenge, [id]: nextBest }
+          : prev.bestScoresByChallenge,
         previousAttemptByChallenge: { ...prev.previousAttemptByChallenge, [id]: result },
         currentStreak: nextStreak,
       };
     });
     setLastResult(result);
+    setResultCtx({
+      pointsEarned,
+      unlockedTitle: newlyUnlocked ? newlyUnlocked.title : null,
+    });
     setView('result');
   }
 
@@ -107,15 +150,47 @@ export default function App() {
       setView('play');
       return;
     }
-    setState((prev) => ({
-      ...prev,
-      currentChallengeIndex: (prev.currentChallengeIndex + 1) % CHALLENGES.length,
-    }));
+    setState((prev) => {
+      const total = totalPointsFromBests(prev.bestScoresByChallenge);
+      return {
+        ...prev,
+        currentChallengeIndex: nextUnlockedIndex(prev.currentChallengeIndex, total),
+      };
+    });
+    setLastResult(null);
+    setView('play');
+  }
+
+  function handleHome() {
+    setLastResult(null);
+    setView('home');
+  }
+
+  function handlePickChallenge(id: string) {
+    const idx = findChallengeIndex(id);
+    if (idx < 0) return;
+    const total = totalPointsFromBests(stateRef.current.bestScoresByChallenge);
+    if (!isChallengeUnlocked(CHALLENGES[idx], total)) return;
+    setState((prev) => ({ ...prev, currentChallengeIndex: idx }));
     setLastResult(null);
     setView('play');
   }
 
   const showTutorialHints = inTutorial && state.tutorialAttempts < TUTORIAL_HINT_LIMIT;
+  const canGoHome = state.hasCompletedTutorial;
+
+  if (view === 'home' && canGoHome) {
+    return (
+      <div className="w-full max-w-md mx-auto h-[100dvh] flex flex-col">
+        <HomeScreen
+          totalPoints={totalPoints}
+          bestScores={state.bestScoresByChallenge}
+          streak={state.currentStreak}
+          onPickChallenge={handlePickChallenge}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md mx-auto h-[100dvh] flex flex-col">
@@ -129,6 +204,7 @@ export default function App() {
           bestScore={bestScore}
           streak={state.currentStreak}
           onSubmit={handleSubmit}
+          onHome={canGoHome ? handleHome : undefined}
         />
       ) : (
         <ResultScreen
@@ -137,6 +213,9 @@ export default function App() {
           streak={state.currentStreak}
           onRetry={handleRetry}
           onNext={handleNext}
+          onHome={canGoHome ? handleHome : undefined}
+          pointsEarned={resultCtx.pointsEarned}
+          unlockedTitle={resultCtx.unlockedTitle}
         />
       )}
     </div>

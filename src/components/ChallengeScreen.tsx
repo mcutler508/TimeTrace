@@ -13,6 +13,7 @@ interface Props {
   bestScore?: number;
   streak: number;
   onSubmit: (path: Point[], elapsed: number) => void;
+  onHome?: () => void;
 }
 
 type Phase = 'ready' | 'armed' | 'running';
@@ -26,6 +27,7 @@ export default function ChallengeScreen({
   bestScore,
   streak,
   onSubmit,
+  onHome,
 }: Props) {
   const canvasRef = useRef<DrawingCanvasHandle | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -101,18 +103,29 @@ export default function ChallengeScreen({
 
   return (
     <div className="flex flex-col h-full w-full max-w-md mx-auto px-5 pt-5 pb-6 gap-4">
-      <header className="flex items-center justify-between">
-        <div>
+      <header className="flex items-center justify-between gap-3">
+        {onHome && phase === 'ready' ? (
+          <button
+            onClick={onHome}
+            className="rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.32em] bg-white/10 text-white/75 border border-white/15 active:scale-95"
+            aria-label="Back to home"
+          >
+            ← Home
+          </button>
+        ) : (
+          <div className="w-[72px]" />
+        )}
+        <div className="flex-1 text-center">
           <div className="text-xs uppercase tracking-[0.32em] text-white/45">
             {challenge.difficulty}
           </div>
-          <h1 className="font-display text-2xl font-bold leading-tight">
+          <h1 className="font-display text-xl font-bold leading-tight">
             {shapeDisplayName(challenge.shape)}
           </h1>
         </div>
         <div className="text-right">
           <div className="text-xs uppercase tracking-[0.32em] text-white/45">Target</div>
-          <div className="font-mono text-2xl text-ink-cyan text-glow-cyan tabular-nums">
+          <div className="font-mono text-xl text-ink-cyan text-glow-cyan tabular-nums">
             {target.toFixed(2)}s
           </div>
         </div>

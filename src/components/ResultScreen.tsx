@@ -9,6 +9,9 @@ interface Props {
   streak: number;
   onRetry: () => void;
   onNext: () => void;
+  onHome?: () => void;
+  pointsEarned?: number;
+  unlockedTitle?: string | null;
 }
 
 export default function ResultScreen({
@@ -17,6 +20,9 @@ export default function ResultScreen({
   streak,
   onRetry,
   onNext,
+  onHome,
+  pointsEarned,
+  unlockedTitle,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -96,14 +102,41 @@ export default function ResultScreen({
 
   return (
     <div className={`flex flex-col h-full w-full max-w-md mx-auto px-5 pt-6 pb-6 gap-4 ${animClass}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-[0.32em] text-white/45">Result</span>
-        {isBest && (
-          <span className="text-xs uppercase tracking-[0.28em] text-ink-gold text-glow-gold">
-            New Best
-          </span>
+      <div className="flex items-center justify-between gap-3">
+        {onHome ? (
+          <button
+            onClick={onHome}
+            className="rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.32em] bg-white/10 text-white/75 border border-white/15 active:scale-95"
+          >
+            ← Home
+          </button>
+        ) : (
+          <span className="text-xs uppercase tracking-[0.32em] text-white/45">Result</span>
         )}
+        <div className="flex items-center gap-2">
+          {pointsEarned != null && pointsEarned > 0 && (
+            <span className="text-[10px] font-mono uppercase tracking-[0.24em] text-ink-cyan/85">
+              +{pointsEarned} pts
+            </span>
+          )}
+          {isBest && (
+            <span className="text-xs uppercase tracking-[0.28em] text-ink-gold text-glow-gold">
+              New Best
+            </span>
+          )}
+        </div>
       </div>
+
+      {unlockedTitle && (
+        <div className="card rounded-2xl px-4 py-3 border-ink-gold/40 bg-ink-gold/10 animate-fadeIn">
+          <div className="text-[10px] uppercase tracking-[0.32em] text-ink-gold">
+            Unlocked
+          </div>
+          <div className="font-display font-semibold text-base text-white mt-0.5">
+            {unlockedTitle}
+          </div>
+        </div>
+      )}
 
       <div className="card rounded-3xl py-6 flex flex-col items-center">
         <ScoreBadge score={result.finalScore} grade={result.grade} />

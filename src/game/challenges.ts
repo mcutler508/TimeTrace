@@ -6,6 +6,10 @@ export const SHAPE_ACCENT: Record<ShapeType, { stroke: string; soft: string }> =
   triangle: { stroke: '#ff4dd2', soft: 'rgba(255, 77, 210, 0.55)' },
   star: { stroke: '#ffb347', soft: 'rgba(255, 179, 71, 0.6)' },
   spiral: { stroke: '#b06bff', soft: 'rgba(176, 107, 255, 0.55)' },
+  hexagon: { stroke: '#ff7a3d', soft: 'rgba(255, 122, 61, 0.55)' },
+  heart: { stroke: '#ff3da4', soft: 'rgba(255, 61, 164, 0.6)' },
+  infinity: { stroke: '#a4ff3d', soft: 'rgba(164, 255, 61, 0.55)' },
+  bolt: { stroke: '#ffe83d', soft: 'rgba(255, 232, 61, 0.65)' },
 };
 
 export function accentFor(shape: ShapeType) {
@@ -79,6 +83,42 @@ export const CHALLENGES: ChallengeMeta[] = [
     difficulty: 'hard',
     unlockThreshold: 460,
     title: 'Inward Bound',
+  },
+  {
+    id: 'hexagon-5_5',
+    shape: 'hexagon',
+    targetTime: 5.5,
+    guideOpacity: 0.32,
+    difficulty: 'medium',
+    unlockThreshold: 600,
+    title: 'Six Sides',
+  },
+  {
+    id: 'heart-6',
+    shape: 'heart',
+    targetTime: 6.0,
+    guideOpacity: 0.3,
+    difficulty: 'hard',
+    unlockThreshold: 760,
+    title: 'Heartbeat',
+  },
+  {
+    id: 'infinity-6_5',
+    shape: 'infinity',
+    targetTime: 6.5,
+    guideOpacity: 0.28,
+    difficulty: 'hard',
+    unlockThreshold: 940,
+    title: 'Forever',
+  },
+  {
+    id: 'bolt-7',
+    shape: 'bolt',
+    targetTime: 7.0,
+    guideOpacity: 0.32,
+    difficulty: 'hard',
+    unlockThreshold: 1140,
+    title: 'Strike',
   },
 ];
 

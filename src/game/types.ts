@@ -1,4 +1,13 @@
-export type ShapeType = 'circle' | 'square' | 'triangle' | 'star' | 'spiral';
+export type ShapeType =
+  | 'circle'
+  | 'square'
+  | 'triangle'
+  | 'star'
+  | 'spiral'
+  | 'hexagon'
+  | 'heart'
+  | 'infinity'
+  | 'bolt';
 
 export type Difficulty = 'tutorial' | 'easy' | 'medium' | 'hard';
 

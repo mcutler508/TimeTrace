@@ -60,6 +60,76 @@ function spiralPath(): Point[] {
   return out;
 }
 
+function hexagonPath(): Point[] {
+  const cx = 0.5;
+  const cy = 0.5;
+  const r = 0.45;
+  const corners: Point[] = [];
+  for (let i = 0; i <= 6; i++) {
+    const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+    corners.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+  }
+  return interpolatePolyline(corners, SAMPLES);
+}
+
+function heartPath(): Point[] {
+  // Parametric heart, normalized into [0,1] with a small inset so glow doesn't clip.
+  const raw: Point[] = [];
+  for (let i = 0; i <= SAMPLES; i++) {
+    const t = (i / SAMPLES) * Math.PI * 2;
+    const x = 16 * Math.pow(Math.sin(t), 3);
+    const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+    raw.push({ x, y });
+  }
+  return normalizePathToBox(raw, 0.06);
+}
+
+function infinityPath(): Point[] {
+  // Lemniscate of Bernoulli, traced fully so it returns to the start point.
+  const raw: Point[] = [];
+  for (let i = 0; i <= SAMPLES; i++) {
+    const t = (i / SAMPLES) * Math.PI * 2;
+    const denom = 1 + Math.sin(t) * Math.sin(t);
+    const x = Math.cos(t) / denom;
+    const y = (Math.sin(t) * Math.cos(t)) / denom;
+    raw.push({ x, y });
+  }
+  return normalizePathToBox(raw, 0.06);
+}
+
+function boltPath(): Point[] {
+  // Sharp 4-vertex zigzag from top-right to bottom-left. Open shape.
+  const corners: Point[] = [
+    { x: 0.66, y: 0.06 },
+    { x: 0.32, y: 0.42 },
+    { x: 0.54, y: 0.5 },
+    { x: 0.22, y: 0.94 },
+  ];
+  return interpolatePolyline(corners, SAMPLES);
+}
+
+function normalizePathToBox(path: Point[], padding = 0.05): Point[] {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of path) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  const width = maxX - minX;
+  const height = maxY - minY;
+  const scale = (1 - padding * 2) / Math.max(width, height);
+  const offsetX = padding + (1 - padding * 2 - width * scale) / 2;
+  const offsetY = padding + (1 - padding * 2 - height * scale) / 2;
+  return path.map((p) => ({
+    x: offsetX + (p.x - minX) * scale,
+    y: offsetY + (p.y - minY) * scale,
+  }));
+}
+
 function interpolatePolyline(corners: Point[], samples: number): Point[] {
   const segs: number[] = [];
   let total = 0;
@@ -98,11 +168,19 @@ export function generateShapePath(shape: ShapeType): Point[] {
       return starPath();
     case 'spiral':
       return spiralPath();
+    case 'hexagon':
+      return hexagonPath();
+    case 'heart':
+      return heartPath();
+    case 'infinity':
+      return infinityPath();
+    case 'bolt':
+      return boltPath();
   }
 }
 
 export function isClosedShape(shape: ShapeType): boolean {
-  return shape !== 'spiral';
+  return shape !== 'spiral' && shape !== 'bolt';
 }
 
 export function shapeDisplayName(shape: ShapeType): string {

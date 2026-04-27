@@ -1,4 +1,16 @@
-import type { AttemptResult, Challenge } from './types';
+import type { AttemptResult, Challenge, ShapeType } from './types';
+
+export const SHAPE_ACCENT: Record<ShapeType, { stroke: string; soft: string }> = {
+  circle: { stroke: '#00f0ff', soft: 'rgba(0, 240, 255, 0.55)' },
+  square: { stroke: '#5b8cff', soft: 'rgba(91, 140, 255, 0.55)' },
+  triangle: { stroke: '#ff4dd2', soft: 'rgba(255, 77, 210, 0.55)' },
+  star: { stroke: '#ffb347', soft: 'rgba(255, 179, 71, 0.6)' },
+  spiral: { stroke: '#b06bff', soft: 'rgba(176, 107, 255, 0.55)' },
+};
+
+export function accentFor(shape: ShapeType) {
+  return SHAPE_ACCENT[shape];
+}
 
 export const TUTORIAL_CHALLENGE: Challenge = {
   id: 'tutorial-circle-3',

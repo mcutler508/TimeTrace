@@ -7,7 +7,7 @@ import { isClosedShape, shapeDisplayName } from '../game/shapes';
 import { haptics } from '../game/haptics';
 import { findWorstSegment, type WorstSegment } from '../game/analyze';
 import { scaleNormalizedToCanvas } from '../game/pathUtils';
-import type { ChallengeMeta } from '../game/challenges';
+import { accentFor, type ChallengeMeta } from '../game/challenges';
 
 export interface SubmitMeta {
   isNewBest: boolean;
@@ -73,7 +73,10 @@ export default function ChallengeScreen({
   const [worstSegment, setWorstSegment] = useState<WorstSegment | null>(null);
   const [submitMeta, setSubmitMeta] = useState<SubmitMeta | null>(null);
   const [perfectFreeze, setPerfectFreeze] = useState(false);
+  const [missFlicker, setMissFlicker] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  const accent = accentFor(challenge.shape);
 
   function changePhase(next: Phase) {
     phaseRef.current = next;
@@ -88,6 +91,7 @@ export default function ChallengeScreen({
     setWorstSegment(null);
     setSubmitMeta(null);
     setPerfectFreeze(false);
+    setMissFlicker(false);
     startTimeRef.current = null;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
   }, [challenge.id]);
@@ -125,7 +129,7 @@ export default function ChallengeScreen({
     const wrapEl = wrapRef.current;
     if (wrapEl && r.playerPath.length >= 6) {
       const rect = wrapEl.getBoundingClientRect();
-      const targetCanvas = scaleNormalizedToCanvas(targetUnitPath, rect.width, rect.height);
+      const targetCanvas = scaleNormalizedToCanvas(targetUnitPath, rect.width, rect.height, 36);
       setWorstSegment(findWorstSegment(r.playerPath, targetCanvas));
     } else {
       setWorstSegment(null);
@@ -141,7 +145,10 @@ export default function ChallengeScreen({
 
     if (r.grade === 'Perfect') {
       setPerfectFreeze(true);
-      setTimeout(() => setPerfectFreeze(false), 220);
+      setTimeout(() => setPerfectFreeze(false), 240);
+    } else if (r.grade === 'Miss') {
+      setMissFlicker(true);
+      setTimeout(() => setMissFlicker(false), 380);
     }
 
     changePhase('result');
@@ -154,6 +161,7 @@ export default function ChallengeScreen({
     setSubmitMeta(null);
     setElapsed(0);
     setPerfectFreeze(false);
+    setMissFlicker(false);
     changePhase('armed');
   }
 
@@ -173,16 +181,20 @@ export default function ChallengeScreen({
     return { color: `rgb(${r}, ${g}, ${b})`, textShadow: glow };
   })();
 
-  const inPerfectLock =
-    phase === 'armed' && (previousScore ?? 0) >= 85;
-
+  const inPerfectLock = phase === 'armed' && (previousScore ?? 0) >= 85;
   const closedShape = isClosedShape(challenge.shape);
+
+  const barProgress = (() => {
+    if (phase === 'running') return Math.min(1.4, elapsed / Math.max(target, 0.001));
+    if (phase === 'result' && result) return Math.min(1.4, result.actualTime / Math.max(target, 0.001));
+    return 0;
+  })();
 
   return (
     <div
-      className={`flex flex-col h-full w-full max-w-md mx-auto px-5 pt-5 pb-6 gap-4 transition-colors duration-300 ${
+      className={`relative flex flex-col h-full w-full max-w-md mx-auto px-5 pt-5 pb-5 gap-4 transition-colors duration-300 ${
         inPerfectLock ? 'perfect-lock' : ''
-      } ${perfectFreeze ? 'perfect-freeze' : ''}`}
+      } ${perfectFreeze ? 'perfect-freeze' : ''} ${missFlicker ? 'miss-flicker' : ''}`}
     >
       <header className="flex items-center justify-between gap-3">
         {onHome && phase === 'armed' ? (
@@ -200,16 +212,19 @@ export default function ChallengeScreen({
           <div className="w-[72px]" />
         )}
         <div className="flex-1 text-center">
-          <div className="text-xs uppercase tracking-[0.32em] text-white/45">
+          <div className="text-[10px] uppercase tracking-[0.32em] text-white/45">
             {challenge.difficulty}
           </div>
-          <h1 className="font-display text-xl font-bold leading-tight">
+          <h1
+            className="font-display text-xl font-bold leading-tight"
+            style={{ color: accent.stroke, textShadow: `0 0 18px ${accent.soft}` }}
+          >
             {shapeDisplayName(challenge.shape)}
           </h1>
         </div>
         <div className="text-right">
-          <div className="text-xs uppercase tracking-[0.32em] text-white/45">Target</div>
-          <div className="font-mono text-xl text-ink-cyan text-glow-cyan tabular-nums">
+          <div className="text-[10px] uppercase tracking-[0.32em] text-white/45">Target</div>
+          <div className="font-mono text-xl text-white tabular-nums">
             {target.toFixed(2)}s
           </div>
         </div>
@@ -223,21 +238,38 @@ export default function ChallengeScreen({
           </span>
         </span>
         {inPerfectLock && (
-          <span className="text-[10px] uppercase tracking-[0.4em] text-ink-gold text-glow-gold animate-fadeIn">
+          <span className="text-[10px] uppercase tracking-[0.5em] text-ink-gold text-glow-gold animate-fadeIn">
             You're close
           </span>
         )}
         <span>
           Streak:{' '}
-          <span className="text-ink-gold font-semibold tabular-nums">{streak}</span>
+          <span
+            className={`font-semibold tabular-nums ${
+              inPerfectLock ? 'text-ink-gold text-glow-gold text-base' : 'text-ink-gold'
+            }`}
+          >
+            {streak}
+          </span>
         </span>
       </div>
 
       <div
         ref={wrapRef}
-        className={`card relative rounded-3xl overflow-hidden transition-shadow duration-200 ${
-          phase === 'armed' ? 'ring-2 ring-ink-cyan/60 shadow-glow-cyan' : ''
-        } ${inPerfectLock ? 'ring-ink-gold/45 shadow-glow-gold' : ''}`}
+        className={`canvas-frame card-hero relative rounded-3xl overflow-hidden p-2 transition-shadow duration-200 ${
+          phase === 'armed'
+            ? 'ring-2 shadow-[0_0_42px_-4px_rgba(0,240,255,0.35)]'
+            : ''
+        }`}
+        style={
+          phase === 'armed'
+            ? ({
+                ['--tw-ring-color' as string]: inPerfectLock
+                  ? 'rgba(255,213,107,0.55)'
+                  : accent.soft,
+              } as React.CSSProperties)
+            : undefined
+        }
       >
         <DrawingCanvas
           ref={canvasRef}
@@ -245,6 +277,8 @@ export default function ChallengeScreen({
           targetUnitPath={targetUnitPath}
           guideOpacity={Math.min(0.85, challenge.guideOpacity * (inPerfectLock ? 1.6 : 1))}
           closedShape={closedShape}
+          accentColor={accent.stroke}
+          accentSoft={accent.soft}
           assistEnabled={assistEnabled}
           assistStrength={assistStrength}
           resultMode={phase === 'result'}
@@ -277,9 +311,9 @@ export default function ChallengeScreen({
         />
 
         {phase !== 'result' && (
-          <div className="absolute top-3 right-3">
+          <div className="absolute top-3 left-1/2 -translate-x-1/2">
             <div
-              className={`font-mono text-xl tabular-nums px-3 py-1 rounded-full bg-black/40 border border-white/10 ${
+              className={`font-mono text-xl tabular-nums px-4 py-1 rounded-full bg-black/55 border border-white/15 backdrop-blur-md ${
                 warmth > 0.4 ? 'timer-pulse' : ''
               }`}
               style={timerColorStyle}
@@ -301,23 +335,71 @@ export default function ChallengeScreen({
         )}
       </div>
 
-      <div className="mt-auto min-h-[3.25rem] flex items-center justify-center">
-        {phase === 'armed' && (
-          <div className="text-center text-[11px] uppercase tracking-[0.4em] text-ink-cyan/70 animate-fadeIn">
-            Touch the shape to start · Lift to stop
-          </div>
-        )}
-        {phase === 'running' && (
-          <div className="text-center text-sm uppercase tracking-[0.32em] text-ink-cyan/85 animate-fadeIn">
-            Lift finger to stop
-          </div>
-        )}
-        {phase === 'result' && (
-          <div className="text-center text-[11px] uppercase tracking-[0.4em] text-white/45 animate-fadeIn">
-            Retry · Next · {onHome ? '← Home anytime' : ''}
-          </div>
-        )}
+      <div className="relative h-12 flex flex-col justify-center">
+        <TimingBar
+          progress={barProgress}
+          phase={phase}
+          warmth={warmth}
+          timeDelta={result?.timeDelta ?? null}
+        />
+        <div className="text-center text-[10px] uppercase tracking-[0.4em] text-white/45 mt-2 animate-fadeIn">
+          {phase === 'armed' && 'Touch the shape · Lift to stop'}
+          {phase === 'running' && 'Hold for the perfect moment'}
+          {phase === 'result' && 'Retry · Next'}
+        </div>
       </div>
+    </div>
+  );
+}
+
+function TimingBar({
+  progress,
+  phase,
+  warmth,
+  timeDelta,
+}: {
+  progress: number;
+  phase: Phase;
+  warmth: number;
+  timeDelta: number | null;
+}) {
+  const targetMarkPos = '50%';
+  const fillPct = Math.min(100, (progress / 1.4) * 100);
+  const isWarm = warmth > 0.4;
+  const fillColor = isWarm
+    ? 'linear-gradient(90deg, rgba(0,240,255,0.5), rgba(255,213,107,0.95))'
+    : 'linear-gradient(90deg, rgba(0,240,255,0.6), rgba(0,240,255,1))';
+
+  const deltaPos =
+    phase === 'result' && timeDelta != null
+      ? Math.max(0, Math.min(100, 50 + (timeDelta / 0.8) * 50 * (50 / 70)))
+      : null;
+
+  return (
+    <div className="relative h-1.5 w-full rounded-full bg-white/8 overflow-hidden">
+      <div
+        className="absolute inset-y-0 left-0 transition-[width] duration-75"
+        style={{
+          width: `${fillPct}%`,
+          background: fillColor,
+          boxShadow: isWarm
+            ? '0 0 18px rgba(255, 213, 107, 0.7)'
+            : '0 0 12px rgba(0, 240, 255, 0.5)',
+        }}
+      />
+      <div
+        className="absolute top-1/2 -translate-y-1/2 w-0.5 h-3 bg-white/85 rounded-full"
+        style={{ left: targetMarkPos, boxShadow: '0 0 8px rgba(255,255,255,0.6)' }}
+      />
+      {deltaPos != null && (
+        <div
+          className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-ink-gold animate-fadeIn"
+          style={{
+            left: `${deltaPos}%`,
+            boxShadow: '0 0 12px rgba(255, 213, 107, 0.85)',
+          }}
+        />
+      )}
     </div>
   );
 }

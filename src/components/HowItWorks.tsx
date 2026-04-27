@@ -5,7 +5,7 @@ interface Props {
 export default function HowItWorks({ variant = 'card' }: Props) {
   const wrap =
     variant === 'card'
-      ? 'card rounded-2xl px-4 py-3'
+      ? 'card-flat rounded-2xl px-4 py-3'
       : 'rounded-2xl px-4 py-3 bg-black/30 border border-white/10';
   return (
     <div className={wrap}>

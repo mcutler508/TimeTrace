@@ -19,6 +19,8 @@ interface Props {
   targetUnitPath: Point[];
   guideOpacity: number;
   closedShape?: boolean;
+  accentColor: string;
+  accentSoft: string;
   assistEnabled?: boolean;
   assistStrength?: number;
   resultMode?: boolean;
@@ -31,12 +33,32 @@ interface Props {
   onPointAdded?: (count: number) => void;
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const m = hex.replace('#', '').match(/.{2}/g);
+  if (!m) return { r: 0, g: 240, b: 255 };
+  return { r: parseInt(m[0], 16), g: parseInt(m[1], 16), b: parseInt(m[2], 16) };
+}
+
+function rgba(hex: string, a: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+function tintTowardWhite(hex: string, t: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgb(${Math.round(r + (255 - r) * t)}, ${Math.round(g + (255 - g) * t)}, ${Math.round(
+    b + (255 - b) * t,
+  )})`;
+}
+
 const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCanvas(
   {
     enabled,
     targetUnitPath,
     guideOpacity,
     closedShape = true,
+    accentColor,
+    accentSoft,
     assistEnabled = true,
     assistStrength = 1,
     resultMode = false,
@@ -60,7 +82,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
   const burstRafRef = useRef<number | null>(null);
   const burstStartRef = useRef<number>(0);
   const burstParticlesRef = useRef<
-    { x: number; y: number; vx: number; vy: number; life: number }[]
+    { x: number; y: number; vx: number; vy: number; life: number; hue: string }[]
   >([]);
 
   useImperativeHandle(ref, () => ({
@@ -94,6 +116,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
   }, [
     targetUnitPath,
     guideOpacity,
+    accentColor,
+    accentSoft,
     resultMode,
     resultPath,
     resultGrade,
@@ -124,7 +148,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
 
   function targetCanvasPath(): Point[] {
     const { w, h } = sizeRef.current;
-    return scaleNormalizedToCanvas(targetUnitPath, w, h);
+    return scaleNormalizedToCanvas(targetUnitPath, w, h, 36);
   }
 
   function redraw() {
@@ -138,21 +162,17 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     ctx.clearRect(0, 0, w, h);
 
     const tCanvas = targetCanvasPath();
+    const guideHex = '#bcd9ff';
 
     if (resultMode && resultPath && resultPath.length > 1) {
-      drawSmoothPath(
-        ctx,
-        tCanvas,
-        `rgba(180, 220, 255, ${Math.min(0.85, guideOpacity * 1.6)})`,
-        2,
-        10,
-        'rgba(120, 200, 255, 0.55)',
-      );
+      drawNeonPath(ctx, tCanvas, guideHex, 4, Math.min(0.85, guideOpacity * 1.6) * 0.9);
+
       const playerNorm = normalizeToUnit(resultPath);
-      const playerCanvas = scaleNormalizedToCanvas(playerNorm, w, h);
-      const isStrong = resultGrade === 'Perfect' || resultGrade === 'Elite';
-      const baseColor = isStrong ? '#ffd56b' : '#00f0ff';
-      drawSmoothPath(ctx, playerCanvas, baseColor, 3, 14, baseColor);
+      const playerCanvas = scaleNormalizedToCanvas(playerNorm, w, h, 36);
+      const isPerfect = resultGrade === 'Perfect';
+      const isElite = resultGrade === 'Elite';
+      const baseColor = isPerfect || isElite ? '#ffd56b' : accentColor;
+      drawNeonPath(ctx, playerCanvas, baseColor, 7, 1);
 
       if (
         worstSegment &&
@@ -163,62 +183,73 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
           worstSegment.startIdx,
           worstSegment.endIdx + 1,
         );
-        drawSmoothPath(ctx, slice, '#ff7a3d', 5, 22, 'rgba(255, 122, 61, 0.85)');
+        drawNeonPath(ctx, slice, '#ff7a3d', 11, 1);
       }
     } else {
-      drawSmoothPath(
-        ctx,
-        tCanvas,
-        `rgba(180, 220, 255, ${guideOpacity})`,
-        2,
-        8,
-        'rgba(120, 200, 255, 0.5)',
-      );
+      drawNeonPath(ctx, tCanvas, guideHex, 5, guideOpacity);
+
       if (pathRef.current.length > 1) {
-        const blur = onTrackRef.current ? 26 : 18;
-        const glow = onTrackRef.current
-          ? 'rgba(0, 240, 255, 1)'
-          : 'rgba(0, 240, 255, 0.85)';
-        drawSmoothPath(ctx, pathRef.current, '#00f0ff', 4, blur, glow);
+        const intensity = onTrackRef.current ? 1.15 : 1.0;
+        drawNeonPath(ctx, pathRef.current, accentColor, 8, intensity);
       }
     }
 
     if (burstParticlesRef.current.length > 0) {
       drawBurst(ctx);
     }
+
+    void accentSoft;
   }
 
-  function drawSmoothPath(
+  function drawNeonPath(
     ctx: CanvasRenderingContext2D,
     pts: Point[],
-    stroke: string,
-    width: number,
-    blur: number,
-    glow?: string,
+    hex: string,
+    coreWidth: number,
+    intensity: number,
   ) {
     if (pts.length < 2) return;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.lineWidth = width;
-    ctx.strokeStyle = stroke;
-    if (blur > 0 && glow) {
-      ctx.shadowBlur = blur;
-      ctx.shadowColor = glow;
-    } else {
-      ctx.shadowBlur = 0;
-    }
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length - 1; i++) {
-      const a = pts[i];
-      const b = pts[i + 1];
-      const mx = (a.x + b.x) / 2;
-      const my = (a.y + b.y) / 2;
-      ctx.quadraticCurveTo(a.x, a.y, mx, my);
-    }
-    const last = pts[pts.length - 1];
-    ctx.lineTo(last.x, last.y);
+
+    const buildPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length - 1; i++) {
+        const a = pts[i];
+        const b = pts[i + 1];
+        const mx = (a.x + b.x) / 2;
+        const my = (a.y + b.y) / 2;
+        ctx.quadraticCurveTo(a.x, a.y, mx, my);
+      }
+      const last = pts[pts.length - 1];
+      ctx.lineTo(last.x, last.y);
+    };
+
+    // Outer halo
+    ctx.shadowBlur = 38;
+    ctx.shadowColor = rgba(hex, 0.8 * intensity);
+    ctx.strokeStyle = rgba(hex, 0.32 * intensity);
+    ctx.lineWidth = coreWidth * 4.5;
+    buildPath();
     ctx.stroke();
+
+    // Mid glow
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = rgba(hex, 1 * intensity);
+    ctx.strokeStyle = rgba(hex, 0.7 * intensity);
+    ctx.lineWidth = coreWidth * 2;
+    buildPath();
+    ctx.stroke();
+
+    // Inner core (white-tinted for that hot-neon look)
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = rgba(hex, 0.95 * intensity);
+    ctx.strokeStyle = tintTowardWhite(hex, 0.55);
+    ctx.lineWidth = coreWidth;
+    buildPath();
+    ctx.stroke();
+
     ctx.shadowBlur = 0;
   }
 
@@ -300,27 +331,29 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     if (!resultPath || resultPath.length < 2) return;
     const { w, h } = sizeRef.current;
     const playerNorm = normalizeToUnit(resultPath);
-    const playerCanvas = scaleNormalizedToCanvas(playerNorm, w, h);
-    const particles: { x: number; y: number; vx: number; vy: number; life: number }[] = [];
-    const count = 36;
+    const playerCanvas = scaleNormalizedToCanvas(playerNorm, w, h, 36);
+    const particles: typeof burstParticlesRef.current = [];
+    const count = 48;
+    const palette = ['#ffd56b', '#fff1b8', accentColor];
     for (let i = 0; i < count; i++) {
       const idx = Math.floor((i / count) * playerCanvas.length);
       const p = playerCanvas[Math.min(playerCanvas.length - 1, idx)];
       const angle = Math.random() * Math.PI * 2;
-      const speed = 60 + Math.random() * 90;
+      const speed = 80 + Math.random() * 110;
       particles.push({
         x: p.x,
         y: p.y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         life: 0,
+        hue: palette[i % palette.length],
       });
     }
     burstParticlesRef.current = particles;
     burstStartRef.current = performance.now();
     const tick = () => {
       const elapsed = (performance.now() - burstStartRef.current) / 1000;
-      if (elapsed > 0.7) {
+      if (elapsed > 0.85) {
         burstParticlesRef.current = [];
         burstRafRef.current = null;
         redraw();
@@ -329,8 +362,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       for (const p of burstParticlesRef.current) {
         p.x += p.vx * 0.016;
         p.y += p.vy * 0.016;
-        p.vx *= 0.94;
-        p.vy *= 0.94;
+        p.vx *= 0.93;
+        p.vy *= 0.93;
         p.life = elapsed;
       }
       redraw();
@@ -350,13 +383,13 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
   function drawBurst(ctx: CanvasRenderingContext2D) {
     ctx.save();
     for (const p of burstParticlesRef.current) {
-      const t = Math.min(1, p.life / 0.7);
-      const alpha = 1 - t;
-      ctx.fillStyle = `rgba(255, 213, 107, ${alpha})`;
-      ctx.shadowBlur = 16;
-      ctx.shadowColor = `rgba(255, 213, 107, ${alpha})`;
+      const t = Math.min(1, p.life / 0.85);
+      const alpha = (1 - t) * 0.95;
+      ctx.fillStyle = rgba(p.hue, alpha);
+      ctx.shadowBlur = 22;
+      ctx.shadowColor = rgba(p.hue, alpha);
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 2.6 + (1 - t) * 1.6, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { haptics } from '../game/haptics';
+import { bootAudio, sfx } from '../game/audio';
 
 interface Props {
   initialName?: string;
@@ -42,7 +43,9 @@ export default function NameEntryScreen({
 
   function commit() {
     if (!valid) return;
+    bootAudio();
     haptics.tap();
+    sfx.tap();
     onSubmit(trimmed);
   }
 

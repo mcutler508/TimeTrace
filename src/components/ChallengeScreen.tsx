@@ -5,6 +5,7 @@ import InlineResultOverlay from './InlineResultOverlay';
 import type { AttemptResult, Point } from '../game/types';
 import { isClosedShape, shapeDisplayName } from '../game/shapes';
 import { haptics } from '../game/haptics';
+import { sfx } from '../game/audio';
 import { findWorstSegment, type WorstSegment } from '../game/analyze';
 import { scaleNormalizedToCanvas } from '../game/pathUtils';
 import { accentFor, type ChallengeMeta } from '../game/challenges';
@@ -136,11 +137,19 @@ export default function ChallengeScreen({
     }
 
     haptics.forGrade(r.grade);
+    sfx.forGrade(r.grade);
     if (meta.isNewBest && meta.pointsEarned > 0) {
-      setTimeout(() => haptics.newBest(), 280);
+      setTimeout(() => {
+        haptics.newBest();
+        sfx.newBest();
+      }, 280);
     }
     if (meta.unlockedTitle) {
-      setTimeout(() => haptics.unlock(), meta.isNewBest ? 700 : 420);
+      const unlockDelay = meta.isNewBest ? 700 : 420;
+      setTimeout(() => {
+        haptics.unlock();
+        sfx.unlock();
+      }, unlockDelay);
     }
 
     if (r.grade === 'Perfect') {
@@ -201,6 +210,7 @@ export default function ChallengeScreen({
           <button
             onClick={() => {
               haptics.micro();
+              sfx.tap();
               onHome();
             }}
             className="btn-sticker-sm px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] font-poster bg-splat-yellow text-splat-black"

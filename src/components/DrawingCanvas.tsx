@@ -2,6 +2,7 @@ import { useEffect, useImperativeHandle, useRef, forwardRef } from 'react';
 import type { AttemptResult, Point } from '../game/types';
 import { normalizeToUnit, scaleNormalizedToCanvas } from '../game/pathUtils';
 import { haptics } from '../game/haptics';
+import { sfx } from '../game/audio';
 import {
   ASSIST_TUNING,
   applyClosure,
@@ -380,6 +381,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     onTrackRef.current = onTrack;
     pathRef.current = [point];
     haptics.start();
+    sfx.start();
     onStrokeStart?.();
     redraw();
   }
@@ -416,6 +418,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       pathRef.current = finalPath;
     }
     haptics.stop();
+    sfx.stop();
     onStrokeEnd?.(finalPath);
   }
 

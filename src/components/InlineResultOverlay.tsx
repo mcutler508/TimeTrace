@@ -1,5 +1,6 @@
 import type { AttemptResult } from '../game/types';
 import { haptics } from '../game/haptics';
+import { sfx } from '../game/audio';
 
 interface Props {
   result: AttemptResult;
@@ -129,6 +130,7 @@ export default function InlineResultOverlay({
           <button
             onClick={() => {
               haptics.micro();
+              sfx.tap();
               onRetry();
             }}
             className="btn-sticker py-3.5 text-poster text-base tracking-[0.18em] bg-splat-yellow text-splat-black"
@@ -138,6 +140,7 @@ export default function InlineResultOverlay({
           <button
             onClick={() => {
               haptics.micro();
+              sfx.tap();
               onNext();
             }}
             className="btn-sticker py-3.5 text-poster text-base tracking-[0.18em] bg-splat-cyan text-splat-black"

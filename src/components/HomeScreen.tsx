@@ -14,6 +14,13 @@ import {
   isHapticsSupported,
   setHapticsEnabled,
 } from '../game/haptics';
+import {
+  bootAudio,
+  getSoundEnabled,
+  isSoundSupported,
+  setSoundEnabled,
+  sfx,
+} from '../game/audio';
 
 interface Props {
   totalPoints: number;
@@ -40,7 +47,9 @@ export default function HomeScreen({
 }: Props) {
   const { next, needed } = pointsToNextUnlock(totalPoints);
   const hapticsSupported = isHapticsSupported();
+  const soundSupported = isSoundSupported();
   const [hapticsOn, setHapticsOn] = useState(getHapticsEnabled());
+  const [soundOn, setSoundOn] = useState(getSoundEnabled());
   const [editingName, setEditingName] = useState(false);
 
   function toggleHaptics() {
@@ -48,6 +57,14 @@ export default function HomeScreen({
     setHapticsOn(v);
     setHapticsEnabled(v);
     if (v) haptics.tap();
+  }
+
+  function toggleSound() {
+    const v = !soundOn;
+    bootAudio();
+    setSoundEnabled(v);
+    setSoundOn(v);
+    if (v) sfx.tap();
   }
 
   function handleSaveName(name: string) {
@@ -89,6 +106,7 @@ export default function HomeScreen({
         <button
           onClick={() => {
             haptics.tap();
+            sfx.tap();
             setEditingName(true);
           }}
           className="card-sticker px-3 py-2 flex items-center gap-2 -rotate-1 active:translate-x-[2px] active:translate-y-[2px]"
@@ -119,6 +137,7 @@ export default function HomeScreen({
           <button
             onClick={() => {
               haptics.tap();
+              sfx.tap();
               onOpenLeaderboard();
             }}
             className="btn-sticker-sm px-3 py-2 text-poster text-[10px] tracking-[0.22em] bg-splat-pink text-splat-paper ml-auto"
@@ -178,6 +197,7 @@ export default function HomeScreen({
                 onClick={() => {
                   if (!unlocked) return;
                   haptics.tap();
+                  sfx.tap();
                   onPickChallenge(c.id);
                 }}
                 className={`relative card-sticker p-3 text-left transition-transform ${tilt} active:translate-x-[3px] active:translate-y-[3px] active:shadow-none ${
@@ -258,9 +278,26 @@ export default function HomeScreen({
       </p>
 
       <div className="flex items-center justify-center gap-3 pb-2 mt-auto flex-wrap">
+        {soundSupported && (
+          <button
+            onClick={toggleSound}
+            className="btn-sticker-sm px-3 py-1.5 text-[10px] uppercase tracking-[0.24em] bg-splat-yellow text-splat-black font-poster flex items-center gap-2"
+            aria-pressed={soundOn}
+          >
+            <span
+              className={`inline-block w-2 h-2 rounded-full border border-splat-black ${
+                soundOn ? 'bg-splat-cyan' : 'bg-splat-black/30'
+              }`}
+            />
+            Sound {soundOn ? 'On' : 'Off'}
+          </button>
+        )}
         {hapticsSupported ? (
           <button
-            onClick={toggleHaptics}
+            onClick={() => {
+              sfx.tap();
+              toggleHaptics();
+            }}
             className="btn-sticker-sm px-3 py-1.5 text-[10px] uppercase tracking-[0.24em] bg-splat-yellow text-splat-black font-poster flex items-center gap-2"
             aria-pressed={hapticsOn}
           >
@@ -278,7 +315,10 @@ export default function HomeScreen({
         )}
         {onResetAll && (
           <button
-            onClick={onResetAll}
+            onClick={() => {
+              sfx.tap();
+              onResetAll();
+            }}
             className="btn-sticker-sm px-3 py-1.5 text-[10px] uppercase tracking-[0.24em] bg-splat-yellow text-splat-black font-poster"
           >
             Reset all

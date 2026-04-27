@@ -6,6 +6,7 @@ import {
   type LeaderboardEntry,
 } from '../game/leaderboard';
 import { haptics } from '../game/haptics';
+import { sfx } from '../game/audio';
 
 interface Props {
   playerId: string;
@@ -65,6 +66,7 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
         <button
           onClick={() => {
             haptics.micro();
+            sfx.tap();
             onHome();
           }}
           className="btn-sticker-sm px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] font-poster bg-splat-yellow text-splat-black"
@@ -77,6 +79,7 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
         <button
           onClick={() => {
             haptics.tap();
+            sfx.tap();
             load();
           }}
           aria-label="Refresh"

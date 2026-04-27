@@ -1,4 +1,5 @@
 import HowItWorks from './HowItWorks';
+import { bootAudio, sfx } from '../game/audio';
 
 interface Props {
   show: boolean;
@@ -31,7 +32,11 @@ export default function TutorialHint({ show, targetTime, variant = 'pill', onDis
           </div>
           <HowItWorks variant="inline" />
           <button
-            onClick={onDismiss}
+            onClick={() => {
+              bootAudio();
+              sfx.tap();
+              onDismiss?.();
+            }}
             className="btn-sticker py-3 text-poster text-sm tracking-[0.18em] bg-splat-yellow text-splat-black"
           >
             GOT IT

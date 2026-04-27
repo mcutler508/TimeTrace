@@ -214,95 +214,45 @@ export default function LeaderboardScreen({ playerId, playerName, onHome }: Prop
         {entries.map((e) => e.name).join(', ') || 'EMPTY'}]
       </div>
 
-      <ol
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-          listStyle: 'none',
-          padding: 0,
-          margin: 0,
-        }}
-      >
-        {entries.map((e, i) => {
-          const rank = i + 1;
-          const isMe = e.id === playerId;
-          const trophyBg =
-            rank === 1 ? '#ffe83d' : rank === 2 ? '#3df0ff' : rank === 3 ? '#a4ff3d' : '#2a2240';
-          const trophyText = rank <= 3 ? '#0a0708' : '#fff5e0';
-          return (
-            <li
-              key={e.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '12px 14px',
-                borderRadius: 14,
-                border: isMe ? '2px solid #ffe83d' : '2px solid rgba(255,245,224,0.18)',
-                background: isMe ? 'rgba(255,232,61,0.12)' : 'rgba(255,245,224,0.05)',
-                fontFamily: '"Bungee", Impact, system-ui, sans-serif',
-                color: '#fff5e0',
-              }}
-            >
-              <div
-                style={{
-                  flex: '0 0 auto',
-                  width: 38,
-                  height: 38,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 10,
-                  border: '2px solid #0a0708',
-                  background: trophyBg,
-                  color: trophyText,
-                  fontWeight: 700,
-                  fontSize: 14,
-                }}
-              >
-                {rank}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 15,
-                    lineHeight: 1.1,
-                    color: isMe ? '#ffe83d' : '#fff5e0',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {e.name}
-                  {isMe && (
-                    <span style={{ fontSize: 10, marginLeft: 8, opacity: 0.85 }}>YOU</span>
-                  )}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: 'rgba(255,245,224,0.55)',
-                    letterSpacing: '0.1em',
-                    marginTop: 2,
-                  }}
-                >
-                  Streak {e.best_streak}
-                </div>
-              </div>
-              <div
-                style={{
-                  fontSize: 18,
-                  fontVariantNumeric: 'tabular-nums',
-                  color: '#fff5e0',
-                }}
-              >
-                {e.total_points}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+      <div style={{ display: 'block', width: '100%' }}>
+        {entries.map((e, i) => (
+          <div
+            key={e.id}
+            style={{
+              display: 'block',
+              width: '100%',
+              minHeight: 60,
+              padding: '14px 16px',
+              marginBottom: 10,
+              borderRadius: 12,
+              border: '3px solid #ffe83d',
+              background: '#1a0e2e',
+              color: '#fff5e0',
+              fontFamily: 'system-ui, sans-serif',
+              fontSize: 18,
+              fontWeight: 700,
+              boxSizing: 'border-box',
+            }}
+          >
+            #{i + 1} · {e.name} · {e.total_points} pts · streak {e.best_streak}
+            {e.id === playerId ? ' ← YOU' : ''}
+          </div>
+        ))}
+        {entries.length === 0 && (
+          <div
+            style={{
+              padding: 16,
+              border: '3px solid #ff3da4',
+              background: '#1a0e2e',
+              color: '#ff3da4',
+              fontFamily: 'system-ui, sans-serif',
+              fontWeight: 700,
+            }}
+          >
+            ENTRIES ARRAY IS EMPTY IN RENDER (but debug bar might say otherwise)
+          </div>
+        )}
+      </div>
 
       {entries.length > 0 && meRank != null && !meInTopList && (
         <div className="sticky bottom-2 mt-2 card-sticker px-3 py-2.5 flex items-center gap-3">

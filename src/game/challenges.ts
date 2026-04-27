@@ -45,7 +45,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 2.5,
     guideOpacity: 0.4,
     difficulty: 'easy',
-    unlockThreshold: 40,
+    unlockThreshold: 25,
     title: 'Quick Loop',
   },
   {
@@ -54,7 +54,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 3.5,
     guideOpacity: 0.4,
     difficulty: 'easy',
-    unlockThreshold: 95,
+    unlockThreshold: 65,
     title: 'Four Corners',
   },
   {
@@ -63,7 +63,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 4.0,
     guideOpacity: 0.35,
     difficulty: 'medium',
-    unlockThreshold: 170,
+    unlockThreshold: 120,
     title: 'Tri Force',
   },
   {
@@ -72,7 +72,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 5.0,
     guideOpacity: 0.32,
     difficulty: 'medium',
-    unlockThreshold: 260,
+    unlockThreshold: 185,
     title: 'Five-Point',
   },
   {
@@ -81,7 +81,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 6.0,
     guideOpacity: 0.3,
     difficulty: 'hard',
-    unlockThreshold: 365,
+    unlockThreshold: 260,
     title: 'Inward Bound',
   },
   {
@@ -90,7 +90,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 5.5,
     guideOpacity: 0.32,
     difficulty: 'medium',
-    unlockThreshold: 480,
+    unlockThreshold: 345,
     title: 'Six Sides',
   },
   {
@@ -99,7 +99,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 6.0,
     guideOpacity: 0.3,
     difficulty: 'hard',
-    unlockThreshold: 605,
+    unlockThreshold: 440,
     title: 'Heartbeat',
   },
   {
@@ -108,7 +108,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 6.5,
     guideOpacity: 0.28,
     difficulty: 'hard',
-    unlockThreshold: 740,
+    unlockThreshold: 545,
     title: 'Forever',
   },
   {
@@ -117,7 +117,7 @@ export const CHALLENGES: ChallengeMeta[] = [
     targetTime: 7.0,
     guideOpacity: 0.32,
     difficulty: 'hard',
-    unlockThreshold: 880,
+    unlockThreshold: 660,
     title: 'Strike',
   },
 ];

@@ -48,15 +48,12 @@ export default function TutorialHint({ show, targetTime, variant = 'pill', onDis
   }
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-3 flex flex-col items-center gap-1.5 animate-fadeIn">
+    <div className="pointer-events-none absolute inset-x-0 top-14 flex flex-col items-center gap-1.5 animate-fadeIn">
       <div className="px-3 py-1 rounded-full text-[10px] font-poster tracking-[0.18em] bg-splat-cyan text-splat-black border-2 border-black -rotate-2 shadow-[3px_3px_0_0_#0a0708]">
         TRACE THE SHAPE
       </div>
       <div className="px-3 py-1 rounded-full text-[10px] font-poster tracking-[0.18em] bg-splat-yellow text-splat-black border-2 border-black rotate-2 shadow-[3px_3px_0_0_#0a0708]">
         STOP AT {targetTime.toFixed(2)}s
-      </div>
-      <div className="px-3 py-1 rounded-full text-[10px] font-poster tracking-[0.18em] bg-splat-pink text-splat-paper border-2 border-black -rotate-1 shadow-[3px_3px_0_0_#0a0708]">
-        SHAPE & TIMING · EQUAL WEIGHT
       </div>
     </div>
   );

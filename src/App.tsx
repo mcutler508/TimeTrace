@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ChallengeScreen, { type SubmitMeta } from './components/ChallengeScreen';
 import HomeScreen from './components/HomeScreen';
+import IntroCard from './components/IntroCard';
 import LeaderboardScreen from './components/LeaderboardScreen';
 import NameEntryScreen from './components/NameEntryScreen';
 import {
@@ -272,51 +273,40 @@ export default function App() {
   const wrapperClass = 'w-full max-w-md mx-auto min-h-screen flex flex-col';
   const wrapperStyle = { minHeight: '100dvh' } as const;
 
+  let viewBody: JSX.Element;
   if (view === 'name') {
-    return (
-      <div className={wrapperClass} style={wrapperStyle}>
-        <NameEntryScreen
-          initialName={state.playerName}
-          mode="signup"
-          playerId={state.playerId}
-          onSignedUp={handleSignedUp}
-          onSignedIn={handleSignedIn}
-        />
-      </div>
+    viewBody = (
+      <NameEntryScreen
+        initialName={state.playerName}
+        mode="signup"
+        playerId={state.playerId}
+        onSignedUp={handleSignedUp}
+        onSignedIn={handleSignedIn}
+      />
     );
-  }
-
-  if (view === 'leaderboard') {
-    return (
-      <div className={wrapperClass} style={wrapperStyle}>
-        <LeaderboardScreen
-          playerId={state.playerId}
-          playerName={state.playerName}
-          onHome={handleHome}
-        />
-      </div>
+  } else if (view === 'leaderboard') {
+    viewBody = (
+      <LeaderboardScreen
+        playerId={state.playerId}
+        playerName={state.playerName}
+        onHome={handleHome}
+      />
     );
-  }
-
-  if (view === 'home' && canGoHome) {
-    return (
-      <div className={wrapperClass} style={wrapperStyle}>
-        <HomeScreen
-          totalPoints={totalPoints}
-          bestScores={state.bestScoresByChallenge}
-          streak={state.currentStreak}
-          playerName={state.playerName}
-          onPickChallenge={handlePickChallenge}
-          onSignOut={handleSignOut}
-          onOpenLeaderboard={handleOpenLeaderboard}
-          onEditName={handleEditName}
-        />
-      </div>
+  } else if (view === 'home' && canGoHome) {
+    viewBody = (
+      <HomeScreen
+        totalPoints={totalPoints}
+        bestScores={state.bestScoresByChallenge}
+        streak={state.currentStreak}
+        playerName={state.playerName}
+        onPickChallenge={handlePickChallenge}
+        onSignOut={handleSignOut}
+        onOpenLeaderboard={handleOpenLeaderboard}
+        onEditName={handleEditName}
+      />
     );
-  }
-
-  return (
-    <div className={wrapperClass} style={wrapperStyle}>
+  } else {
+    viewBody = (
       <ChallengeScreen
         challenge={currentChallenge}
         targetUnitPath={targetUnitPath}
@@ -334,6 +324,15 @@ export default function App() {
         onHome={canGoHome ? handleHome : undefined}
         scoreAttempt={scoreAttempt}
       />
-    </div>
+    );
+  }
+
+  return (
+    <>
+      <div className={wrapperClass} style={wrapperStyle}>
+        {viewBody}
+      </div>
+      <IntroCard />
+    </>
   );
 }

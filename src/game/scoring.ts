@@ -1,4 +1,4 @@
-import type { AttemptResult, Grade, Point, ShapeType } from './types';
+import type { AttemptResult, Grade, Point, ShapeSegment, ShapeType } from './types';
 import {
   bestRotationOffset,
   boundingBox,
@@ -7,12 +7,16 @@ import {
   resamplePath,
   splitOnTeleport,
 } from './pathUtils';
+// (normalizeToUnit also used by scoreMultiShape to put each segment target
+//  back into 0..1 space before per-segment Hausdorff scoring.)
 import { isClosedShape } from './shapes';
 
 export interface ScoreAttemptInput {
   playerPath: Point[];
   targetUnitPath: Point[];
   shape: ShapeType;
+  /** When set, per-segment shape scores are averaged (Constellations chapter). */
+  segments?: ShapeSegment[];
   targetTime: number;
   elapsed: number;
   challengeId: string;
@@ -23,12 +27,22 @@ export function scoreAttempt({
   playerPath,
   targetUnitPath,
   shape,
+  segments,
   targetTime,
   elapsed,
   challengeId,
   applyTutorial,
 }: ScoreAttemptInput): AttemptResult {
-  const tShape = scoreShape(playerPath, targetUnitPath, shape);
+  const isMulti = !!segments && segments.length > 1;
+  let tShape: number;
+  let segmentScores: number[] | undefined;
+  if (isMulti) {
+    const out = scoreMultiShape(playerPath, targetUnitPath, segments!);
+    tShape = out.average;
+    segmentScores = out.perSegment;
+  } else {
+    tShape = scoreShape(playerPath, targetUnitPath, shape);
+  }
   const tTime = Math.round(timingScore(elapsed, targetTime));
   const final = combineFinalScore(tShape, tTime);
   let result: AttemptResult = {
@@ -42,9 +56,42 @@ export function scoreAttempt({
     playerPath,
     targetPath: targetUnitPath,
     grade: gradeFor(final),
+    segmentScores,
   };
   if (applyTutorial) result = applyTutorialBias(result);
   return result;
+}
+
+/**
+ * Score a multi-shape attempt by splitting both player and target paths on
+ * teleport markers, scoring each segment against its own shape, and averaging
+ * the per-segment shape scores. A missing/too-short player segment counts as 0.
+ */
+function scoreMultiShape(
+  playerPath: Point[],
+  targetUnitPath: Point[],
+  segments: ShapeSegment[],
+): { average: number; perSegment: number[] } {
+  const playerSegs = splitOnTeleport(playerPath);
+  const targetSegs = splitOnTeleport(targetUnitPath);
+  const perSegment: number[] = [];
+  for (let i = 0; i < segments.length; i++) {
+    const target = targetSegs[i];
+    const player = playerSegs[i];
+    if (!target || target.length < 4 || !player || player.length < 4) {
+      perSegment.push(0);
+      continue;
+    }
+    // Re-normalize this segment's target to its own bbox so it fills 0..1.
+    // Without this we'd compare a segment target cramped inside a small
+    // sub-region of unit space against a player path that scoreShape will
+    // bbox-normalize to fill 0..1 — Hausdorff would explode.
+    const targetNormalized = normalizeToUnit(target);
+    perSegment.push(scoreShape(player, targetNormalized, segments[i].shape));
+  }
+  const sum = perSegment.reduce((a, b) => a + b, 0);
+  const average = Math.round(sum / Math.max(1, segments.length));
+  return { average, perSegment };
 }
 
 const RESAMPLE_N = 64;

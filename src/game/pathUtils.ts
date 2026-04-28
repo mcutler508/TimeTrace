@@ -209,5 +209,10 @@ export function scaleNormalizedToCanvas(
   const size = Math.min(width, height) - padding * 2;
   const offsetX = (width - size) / 2;
   const offsetY = (height - size) / 2;
-  return path.map((p) => ({ x: offsetX + p.x * size, y: offsetY + p.y * size }));
+  return path.map((p) => ({
+    x: offsetX + p.x * size,
+    y: offsetY + p.y * size,
+    t: p.t,
+    teleport: p.teleport,
+  }));
 }

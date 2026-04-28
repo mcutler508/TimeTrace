@@ -42,20 +42,20 @@ export interface Point {
   teleport?: boolean;
 }
 
-export interface Portal {
-  /**
-   * Parametric position along the target path as a fraction in [0, 1].
-   * 0 = start of path, 1 = end. Portal sits on the curve at this point and
-   * is rendered as a glowing slash perpendicular to the path tangent there.
-   */
-  pathT: number;
-  /** Slash length in unit space. Defaults to ~0.09. */
-  length?: number;
-}
-
-export interface PortalPair {
-  entry: Portal;
-  exit: Portal;
+/**
+ * One shape inside a multi-shape ("Constellations") challenge. Each segment is
+ * generated at unit scale, then transformed into its placement on the canvas.
+ * Between segments the target path carries a `teleport` boundary so the line
+ * lifts at the portal jump.
+ */
+export interface ShapeSegment {
+  shape: ShapeType;
+  /** Center on the canvas in unit coordinates [0,1]. */
+  center: { x: number; y: number };
+  /** Scale factor — 1.0 fills the canvas; ~0.4 fits two side by side. */
+  scale: number;
+  /** Optional rotation in radians. */
+  rotation?: number;
 }
 
 export interface AttemptResult {
@@ -69,6 +69,8 @@ export interface AttemptResult {
   playerPath: Point[];
   targetPath: Point[];
   grade: Grade;
+  /** For multi-shape challenges: the per-segment shape score [0..1]. */
+  segmentScores?: number[];
 }
 
 export interface SavedGameState {

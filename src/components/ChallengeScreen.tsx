@@ -69,6 +69,8 @@ export default function ChallengeScreen({
   const startTimeRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const phaseRef = useRef<Phase>('armed');
+  /** When set, the elapsed timer is paused — used for portal lift-and-place. */
+  const portalPausedAtRef = useRef<number | null>(null);
   const [phase, setPhase] = useState<Phase>('armed');
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<AttemptResult | null>(null);
@@ -78,16 +80,15 @@ export default function ChallengeScreen({
   const [missFlicker, setMissFlicker] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
-  const challengePortals = (challenge as { portals?: import('../game/types').PortalPair[] })
-    .portals;
+  const isMultiShape = !!challenge.segments && challenge.segments.length > 0;
   const [showPortalTutorial, setShowPortalTutorial] = useState(false);
   useEffect(() => {
-    if (challengePortals && challengePortals.length > 0 && !getPortalTutorialSeen()) {
+    if (isMultiShape && !getPortalTutorialSeen()) {
       setShowPortalTutorial(true);
     } else {
       setShowPortalTutorial(false);
     }
-  }, [challenge.id, challengePortals]);
+  }, [challenge.id, isMultiShape]);
 
   const accent = accentFor(challenge.shape);
 
@@ -106,6 +107,7 @@ export default function ChallengeScreen({
     setPerfectFreeze(false);
     setMissFlicker(false);
     startTimeRef.current = null;
+    portalPausedAtRef.current = null;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
   }, [challenge.id]);
 
@@ -116,8 +118,40 @@ export default function ChallengeScreen({
   function handleStrokeStart() {
     if (phaseRef.current !== 'armed') return;
     startTimeRef.current = performance.now();
+    portalPausedAtRef.current = null;
     setElapsed(0);
     changePhase('running');
+    const tick = () => {
+      if (startTimeRef.current == null) return;
+      setElapsed((performance.now() - startTimeRef.current) / 1000);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }
+
+  /**
+   * Called by DrawingCanvas when the live stroke crosses an IN portal slash.
+   * Freezes the visible elapsed timer until the stroke is resumed at OUT.
+   */
+  function handlePortalPause() {
+    if (portalPausedAtRef.current != null) return;
+    portalPausedAtRef.current = performance.now();
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  }
+
+  /**
+   * Called by DrawingCanvas when the player taps inside the OUT landing ring.
+   * Shifts startTimeRef forward by the lift duration so subsequent elapsed
+   * calculations naturally exclude the paused window.
+   */
+  function handlePortalResume() {
+    if (portalPausedAtRef.current == null || startTimeRef.current == null) return;
+    const pauseDuration = performance.now() - portalPausedAtRef.current;
+    startTimeRef.current += pauseDuration;
+    portalPausedAtRef.current = null;
     const tick = () => {
       if (startTimeRef.current == null) return;
       setElapsed((performance.now() - startTimeRef.current) / 1000);
@@ -183,6 +217,7 @@ export default function ChallengeScreen({
     setElapsed(0);
     setPerfectFreeze(false);
     setMissFlicker(false);
+    portalPausedAtRef.current = null;
     changePhase('armed');
   }
 
@@ -241,8 +276,15 @@ export default function ChallengeScreen({
             className="text-poster text-2xl leading-none mt-0.5 text-sticker"
             style={{ color: accent.stroke }}
           >
-            {shapeDisplayName(challenge.shape).toUpperCase()}
+            {(isMultiShape ? challenge.title : shapeDisplayName(challenge.shape)).toUpperCase()}
           </h1>
+          {isMultiShape && (
+            <div className="text-poster text-[9px] tracking-[0.22em] text-splat-paper/55 mt-1">
+              {challenge
+                .segments!.map((s) => shapeDisplayName(s.shape).toUpperCase())
+                .join(' → ')}
+            </div>
+          )}
         </div>
         <div className="card-sticker px-3 py-2 -rotate-2">
           <div className="text-[9px] uppercase tracking-[0.28em] text-splat-yellow font-bold leading-none">Target</div>
@@ -301,7 +343,6 @@ export default function ChallengeScreen({
           accentSoft={accent.soft}
           assistEnabled={assistEnabled}
           assistStrength={assistStrength}
-          portals={(challenge as { portals?: import('../game/types').PortalPair[] }).portals}
           resultMode={phase === 'result'}
           resultPath={result ? result.playerPath : null}
           resultGrade={result ? result.grade : null}
@@ -313,6 +354,8 @@ export default function ChallengeScreen({
           perfectBurst={phase === 'result' && result?.grade === 'Perfect'}
           onStrokeStart={handleStrokeStart}
           onStrokeEnd={handleStrokeEnd}
+          onPortalPause={handlePortalPause}
+          onPortalResume={handlePortalResume}
         />
 
         <TutorialHint

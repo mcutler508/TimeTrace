@@ -1,4 +1,4 @@
-import type { Point, ShapeType } from './types';
+import type { Point, ShapeSegment, ShapeType } from './types';
 
 const SAMPLES = 96;
 
@@ -376,3 +376,83 @@ export function isClosedShape(shape: ShapeType): boolean {
 export function shapeDisplayName(shape: ShapeType): string {
   return shape[0].toUpperCase() + shape.slice(1);
 }
+
+function transformSegmentPath(seg: ShapeSegment, rotation: number): Point[] {
+  const base = generateShapePath(seg.shape);
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  return base.map((p) => {
+    let dx = p.x - 0.5;
+    let dy = p.y - 0.5;
+    if (rotation) {
+      const nx = dx * cos - dy * sin;
+      const ny = dx * sin + dy * cos;
+      dx = nx;
+      dy = ny;
+    }
+    dx *= seg.scale;
+    dy *= seg.scale;
+    return { x: seg.center.x + dx, y: seg.center.y + dy, t: p.t };
+  });
+}
+
+/** Shapes whose default starting orientation looks fine when freely rotated. */
+const RADIALLY_SYMMETRIC = new Set([
+  'circle',
+  'square',
+  'triangle',
+  'star',
+  'hexagon',
+  'spiral',
+  'doubleLoop',
+  'trefoil',
+]);
+
+/**
+ * For radially symmetric closed shapes, rotate so the closure point (where the
+ * path's start/end sits, default at angle -PI/2 = top) faces the partner
+ * shape direction. For interior segments we point the closure toward the NEXT
+ * neighbour so the IN slash sits on the exit side; the first segment also
+ * points toward next, the last toward prev.
+ */
+function autoRotation(
+  seg: ShapeSegment,
+  prev: ShapeSegment | undefined,
+  next: ShapeSegment | undefined,
+): number {
+  if (seg.rotation !== undefined) return seg.rotation;
+  if (!RADIALLY_SYMMETRIC.has(seg.shape)) return 0;
+  const partner = next ?? prev;
+  if (!partner) return 0;
+  const dx = partner.center.x - seg.center.x;
+  const dy = partner.center.y - seg.center.y;
+  const angleToPartner = Math.atan2(dy, dx);
+  // Default closure of these shapes is at angle -PI/2. Rotate by
+  // (target - default) = angleToPartner - (-PI/2) = angleToPartner + PI/2.
+  return angleToPartner + Math.PI / 2;
+}
+
+/**
+ * Generate a continuous unit-space target path from an ordered list of shape
+ * segments. Between segments the last point of segment N is flagged
+ * `teleport: true` so the rendered line lifts at the portal jump and the
+ * scorer treats each segment as its own sub-path. For radially symmetric
+ * closed shapes, each segment is auto-rotated so its closure (the IN/OUT
+ * portal point) faces the partner segment.
+ */
+export function generateMultiShapePath(segments: ShapeSegment[]): Point[] {
+  const result: Point[] = [];
+  for (let s = 0; s < segments.length; s++) {
+    const prev = s > 0 ? segments[s - 1] : undefined;
+    const next = s < segments.length - 1 ? segments[s + 1] : undefined;
+    const rotation = autoRotation(segments[s], prev, next);
+    const transformed = transformSegmentPath(segments[s], rotation);
+    if (s > 0 && result.length > 0) {
+      const last = result[result.length - 1];
+      result[result.length - 1] = { ...last, teleport: true };
+    }
+    result.push(...transformed);
+  }
+  return result;
+}
+

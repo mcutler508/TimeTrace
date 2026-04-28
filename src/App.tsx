@@ -13,7 +13,7 @@ import {
   totalPointsFromBests,
   type ChallengeMeta,
 } from './game/challenges';
-import { generateShapePath } from './game/shapes';
+import { generateMultiShapePath, generateShapePath } from './game/shapes';
 import { scoreAttempt as runScoreAttempt } from './game/scoring';
 import { loadState, resetState, saveState } from './game/storage';
 import { assistStrengthForAttempt } from './game/assist';
@@ -67,8 +67,11 @@ export default function App() {
     : challengeAt(state.currentChallengeIndex);
 
   const targetUnitPath = useMemo(
-    () => generateShapePath(currentChallenge.shape),
-    [currentChallenge.shape],
+    () =>
+      currentChallenge.segments && currentChallenge.segments.length > 0
+        ? generateMultiShapePath(currentChallenge.segments)
+        : generateShapePath(currentChallenge.shape),
+    [currentChallenge.shape, currentChallenge.segments],
   );
 
   const bestScore = state.bestScoresByChallenge[currentChallenge.id]?.finalScore;
@@ -87,6 +90,7 @@ export default function App() {
       playerPath,
       targetUnitPath: targetPath,
       shape: currentChallenge.shape,
+      segments: currentChallenge.segments,
       targetTime: currentChallenge.targetTime,
       elapsed,
       challengeId,

@@ -1,6 +1,6 @@
-import { useEffect, useImperativeHandle, useRef, forwardRef } from 'react';
-import type { AttemptResult, Point, PortalPair } from '../game/types';
-import { sampleAt, scaleNormalizedToCanvas, segmentsIntersect } from '../game/pathUtils';
+import { useEffect, useImperativeHandle, useMemo, useRef, forwardRef } from 'react';
+import type { AttemptResult, Point } from '../game/types';
+import { scaleNormalizedToCanvas, segmentsIntersect } from '../game/pathUtils';
 import { haptics } from '../game/haptics';
 import { sfx } from '../game/audio';
 import {
@@ -29,10 +29,13 @@ interface Props {
   resultGrade?: AttemptResult['grade'] | null;
   worstSegment?: { startIdx: number; endIdx: number } | null;
   perfectBurst?: boolean;
-  portals?: PortalPair[];
   onStrokeStart?: () => void;
   onStrokeEnd?: (path: Point[]) => void;
   onPointAdded?: (count: number) => void;
+  /** Called when the live stroke crosses an IN slash. Host should freeze the timer. */
+  onPortalPause?: () => void;
+  /** Called when the player successfully places inside the OUT landing ring. Host should resume the timer. */
+  onPortalResume?: () => void;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -68,9 +71,10 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     resultGrade = null,
     worstSegment = null,
     perfectBurst = false,
-    portals,
     onStrokeStart,
     onStrokeEnd,
+    onPortalPause,
+    onPortalResume,
   },
   ref,
 ) {
@@ -87,13 +91,27 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
   const burstParticlesRef = useRef<
     { x: number; y: number; vx: number; vy: number; life: number; hue: string }[]
   >([]);
-  /** Sum of teleport offsets applied to subsequent stroke points, in canvas pixels. */
-  const teleportOffsetRef = useRef({ dx: 0, dy: 0 });
-  /** Indices into the active portals list that have already been used in this stroke. */
+  /** Indices into the active portals list whose IN→OUT cycle has fully landed. Visual "scar" state. */
   const usedPortalsRef = useRef<Set<number>>(new Set());
   /** Portal animation start, for the live ring pulse. */
   const portalAnimStartRef = useRef<number>(0);
   const portalAnimRafRef = useRef<number | null>(null);
+  /**
+   * Lift-and-place state.
+   * - `tracing`: normal drawing (or idle).
+   * - `pending`: stroke crossed pair `pairIndex`'s IN slash. Line is frozen at IN.
+   *   `liftedAt` is null while the original finger is still down, set to a timestamp
+   *   the moment it lifts. While in `pending`, the next pointerdown inside the OUT
+   *   landing ring resumes the stroke from the OUT anchor point.
+   */
+  const portalStateRef = useRef<
+    | { mode: 'tracing' }
+    | { mode: 'pending'; pairIndex: number; capturedAt: number; liftedAt: number | null }
+  >({ mode: 'tracing' });
+  /** Particles for the OUT-landing burst (separate from the perfect-attempt burst). */
+  const landingBurstRef = useRef<
+    { x: number; y: number; vx: number; vy: number; startedAt: number; hue: string }[]
+  >([]);
 
   useImperativeHandle(ref, () => ({
     reset() {
@@ -101,8 +119,9 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       rawHistoryRef.current = [];
       drawingRef.current = false;
       onTrackRef.current = false;
-      teleportOffsetRef.current = { dx: 0, dy: 0 };
       usedPortalsRef.current = new Set();
+      portalStateRef.current = { mode: 'tracing' };
+      landingBurstRef.current = [];
       cancelBurst();
       redraw();
     },
@@ -122,10 +141,19 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * True if the current target path has at least one teleport marker — i.e.
+   * this challenge has portals. Derived once per target path.
+   */
+  const hasPortals = useMemo(
+    () => targetUnitPath.some((p) => p.teleport),
+    [targetUnitPath],
+  );
+
   // Portal pulse animation. Runs when portals exist and not in result mode.
   useEffect(() => {
-    const hasPortals = portals && portals.length > 0 && !resultMode;
-    if (!hasPortals) {
+    const animate = hasPortals && !resultMode;
+    if (!animate) {
       if (portalAnimRafRef.current != null) {
         cancelAnimationFrame(portalAnimRafRef.current);
         portalAnimRafRef.current = null;
@@ -145,7 +173,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [portals, resultMode]);
+  }, [hasPortals, resultMode]);
 
   useEffect(() => {
     redraw();
@@ -208,26 +236,51 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     b: { x: number; y: number };
   }
 
-  function makeSlash(pathT: number, lengthUnit: number): PortalSlash {
-    const tCanvas = targetCanvasPath();
-    const sample = sampleAt(tCanvas, pathT);
-    const tangent = sample.tangent;
-    const perp = { x: -tangent.y, y: tangent.x };
+  function normalize(v: { x: number; y: number }): { x: number; y: number } {
+    const len = Math.hypot(v.x, v.y) || 1;
+    return { x: v.x / len, y: v.y / len };
+  }
+
+  /** Build a slash centered at a canvas point, perpendicular to a tangent. */
+  function makeSlashAt(
+    point: { x: number; y: number },
+    tangent: { x: number; y: number },
+    lengthUnit: number,
+  ): PortalSlash {
+    const t = normalize(tangent);
+    const perp = { x: -t.y, y: t.x };
     const { w, h } = sizeRef.current;
     const padding = 36;
     const size = Math.min(w, h) - padding * 2;
     const halfLen = (lengthUnit * size) / 2;
-    const a = { x: sample.point.x + perp.x * halfLen, y: sample.point.y + perp.y * halfLen };
-    const b = { x: sample.point.x - perp.x * halfLen, y: sample.point.y - perp.y * halfLen };
-    return { p: sample.point, tangent, perp, halfLen, a, b };
+    const a = { x: point.x + perp.x * halfLen, y: point.y + perp.y * halfLen };
+    const b = { x: point.x - perp.x * halfLen, y: point.y - perp.y * halfLen };
+    return { p: { x: point.x, y: point.y }, tangent: t, perp, halfLen, a, b };
   }
 
+  /**
+   * Derive portal slash pairs by walking the canvas-space target path looking
+   * for teleport boundaries. The IN slash sits at the last point of one
+   * segment, oriented along the incoming tangent; the OUT slash sits at the
+   * first point of the next segment, oriented along the outgoing tangent.
+   */
   function portalSlashes(): { entry: PortalSlash; exit: PortalSlash }[] {
-    if (!portals || portals.length === 0) return [];
-    return portals.map((pair) => ({
-      entry: makeSlash(pair.entry.pathT, pair.entry.length ?? 0.1),
-      exit: makeSlash(pair.exit.pathT, pair.exit.length ?? 0.1),
-    }));
+    const tCanvas = targetCanvasPath();
+    const result: { entry: PortalSlash; exit: PortalSlash }[] = [];
+    for (let i = 0; i < tCanvas.length - 1; i++) {
+      if (!tCanvas[i].teleport) continue;
+      const entryPoint = tCanvas[i];
+      const exitPoint = tCanvas[i + 1];
+      const ePrev = i > 0 ? tCanvas[i - 1] : entryPoint;
+      const xNext = i + 2 < tCanvas.length ? tCanvas[i + 2] : exitPoint;
+      const eTangent = { x: entryPoint.x - ePrev.x, y: entryPoint.y - ePrev.y };
+      const xTangent = { x: xNext.x - exitPoint.x, y: xNext.y - exitPoint.y };
+      result.push({
+        entry: makeSlashAt(entryPoint, eTangent, 0.13),
+        exit: makeSlashAt(exitPoint, xTangent, 0.13),
+      });
+    }
+    return result;
   }
 
   function drawPortalSlash(
@@ -349,26 +402,291 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     entry: PortalSlash,
     exit: PortalSlash,
     used: boolean,
+    isPending: boolean,
+    pendingMsSinceCapture: number,
     pulse: number,
+    now: number,
   ) {
-    // Connection arc (faint curved link from entry to exit) — only when active.
+    // Connection arc — brighter and pink while pending, faint dashed when idle.
     if (!used) {
       ctx.save();
-      ctx.setLineDash([5, 7]);
-      ctx.lineWidth = 1.25;
-      ctx.strokeStyle = 'rgba(255, 245, 224, 0.18)';
+      ctx.setLineDash(isPending ? [3, 6] : [5, 7]);
+      ctx.lineWidth = isPending ? 1.8 : 1.25;
+      ctx.strokeStyle = isPending
+        ? 'rgba(255, 61, 164, 0.55)'
+        : 'rgba(255, 245, 224, 0.18)';
       ctx.beginPath();
-      // Curved bezier between entry and exit midpoints
       const cx = (entry.p.x + exit.p.x) / 2;
       const cy = (entry.p.y + exit.p.y) / 2 - 18;
       ctx.moveTo(entry.p.x, entry.p.y);
       ctx.quadraticCurveTo(cx, cy, exit.p.x, exit.p.y);
       ctx.stroke();
       ctx.restore();
+
+      if (isPending) {
+        drawPortalComet(ctx, entry, exit, pendingMsSinceCapture);
+      }
     }
 
-    drawPortalSlash(ctx, entry, '#3df0ff', used, pulse, 'IN');
-    drawPortalSlash(ctx, exit, '#ff3da4', used, pulse + 0.5, 'OUT');
+    // IN slash
+    if (used) {
+      drawPortalScar(ctx, entry, '#3df0ff');
+    } else if (isPending) {
+      drawCapturedSlash(ctx, entry, '#3df0ff', pendingMsSinceCapture);
+    } else {
+      drawPortalSlash(ctx, entry, '#3df0ff', false, pulse, 'IN');
+    }
+
+    // OUT slash
+    if (used) {
+      drawPortalScar(ctx, exit, '#ff3da4');
+    } else if (isPending) {
+      drawArmedExit(ctx, exit, pulse, now);
+    } else {
+      drawPortalSlash(ctx, exit, '#ff3da4', false, pulse + 0.5, 'OUT');
+    }
+  }
+
+  /**
+   * IN-slash collapse animation. Plays for ~180ms after capture, then settles
+   * into a faint pulse so the player keeps a sense of where the line went in.
+   */
+  function drawCapturedSlash(
+    ctx: CanvasRenderingContext2D,
+    slash: PortalSlash,
+    color: string,
+    msSinceCapture: number,
+  ) {
+    const collapseT = Math.min(1, msSinceCapture / 180);
+    const lenScale = 1 - collapseT * 0.7; // collapses to ~30% length
+    const liveLen = slash.halfLen * Math.max(0.18, lenScale);
+    const a = {
+      x: slash.p.x + slash.perp.x * liveLen,
+      y: slash.p.y + slash.perp.y * liveLen,
+    };
+    const b = {
+      x: slash.p.x - slash.perp.x * liveLen,
+      y: slash.p.y - slash.perp.y * liveLen,
+    };
+
+    ctx.save();
+    ctx.lineCap = 'round';
+
+    // Glowing core fading and shrinking
+    ctx.shadowBlur = 26 * (1 - collapseT * 0.5);
+    ctx.shadowColor = color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 9 * (1 - collapseT * 0.4);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    // Bright center stripe also shrinks
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 1.5 * (1 - collapseT * 0.3);
+    ctx.strokeStyle = `rgba(255,255,255,${0.95 * (1 - collapseT * 0.5)})`;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    // Sparkle implosion ring around the midpoint as the slash collapses
+    if (collapseT < 1) {
+      const ringR = slash.halfLen * (0.4 + collapseT * 0.7);
+      const ringAlpha = (1 - collapseT) * 0.55;
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = color;
+      ctx.strokeStyle = rgba(color, ringAlpha);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(slash.p.x, slash.p.y, ringR, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // After collapse, a soft "scar" pulse so it stays legible as the source.
+    if (collapseT >= 1) {
+      const idle = ((msSinceCapture - 180) / 1200) % 1;
+      const breathe = 0.18 + 0.12 * Math.sin(idle * Math.PI * 2);
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = color;
+      ctx.fillStyle = rgba(color, breathe);
+      ctx.beginPath();
+      ctx.arc(slash.p.x, slash.p.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * Armed OUT slash: amplified glow + concentric expanding landing rings +
+   * subtle radial fill telegraphing the place zone. Includes a tiny "PLACE"
+   * label above the ring.
+   */
+  function drawArmedExit(
+    ctx: CanvasRenderingContext2D,
+    slash: PortalSlash,
+    pulse: number,
+    now: number,
+  ) {
+    const r = landingRadius();
+
+    ctx.save();
+
+    // Inner soft radial fill
+    const grad = ctx.createRadialGradient(slash.p.x, slash.p.y, 0, slash.p.x, slash.p.y, r);
+    grad.addColorStop(0, 'rgba(255, 61, 164, 0.18)');
+    grad.addColorStop(0.6, 'rgba(255, 61, 164, 0.06)');
+    grad.addColorStop(1, 'rgba(61, 240, 255, 0.0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(slash.p.x, slash.p.y, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Three concentric rings expanding & fading on a 900ms loop
+    ctx.lineCap = 'round';
+    const ringPhase = (now / 900) % 1;
+    for (let i = 0; i < 3; i++) {
+      const phase = (ringPhase + i / 3) % 1;
+      const radius = r * (0.55 + phase * 1.25);
+      const alpha = (1 - phase) * 0.55;
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = '#ff3da4';
+      ctx.strokeStyle = rgba('#ff3da4', alpha);
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(slash.p.x, slash.p.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    // The slash itself with extra glow
+    const breath = 0.18 * Math.sin(pulse * Math.PI * 2);
+    const liveLen = slash.halfLen * (1 + breath);
+    const a = {
+      x: slash.p.x + slash.perp.x * liveLen,
+      y: slash.p.y + slash.perp.y * liveLen,
+    };
+    const b = {
+      x: slash.p.x - slash.perp.x * liveLen,
+      y: slash.p.y - slash.perp.y * liveLen,
+    };
+
+    ctx.save();
+    ctx.lineCap = 'round';
+
+    ctx.shadowBlur = 36;
+    ctx.shadowColor = '#ff3da4';
+    ctx.strokeStyle = '#ff3da4';
+    ctx.lineWidth = 11;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#0a0708';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#ff3da4';
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = '#ff3da4';
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    // "PLACE" hint above the ring
+    ctx.fillStyle = 'rgba(255, 245, 224, 0.95)';
+    ctx.font = 'bold 9px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = 'rgba(255, 61, 164, 0.6)';
+    ctx.fillText('PLACE', slash.p.x, slash.p.y - r - 12);
+
+    ctx.restore();
+  }
+
+  /**
+   * Bright comet that glides from IN midpoint to OUT midpoint along the
+   * connection arc once during the first ~280ms after capture. Telegraphs
+   * the destination so the player knows where to land.
+   */
+  function drawPortalComet(
+    ctx: CanvasRenderingContext2D,
+    entry: PortalSlash,
+    exit: PortalSlash,
+    msSinceCapture: number,
+  ) {
+    const t = Math.min(1, msSinceCapture / 280);
+    if (t <= 0) return;
+    const cx = (entry.p.x + exit.p.x) / 2;
+    const cy = (entry.p.y + exit.p.y) / 2 - 18;
+
+    const bezier = (tt: number) => {
+      const u = 1 - tt;
+      return {
+        x: u * u * entry.p.x + 2 * u * tt * cx + tt * tt * exit.p.x,
+        y: u * u * entry.p.y + 2 * u * tt * cy + tt * tt * exit.p.y,
+      };
+    };
+
+    ctx.save();
+    // Trail (rendered first so the head sits on top)
+    const trailCount = 8;
+    for (let k = trailCount; k >= 1; k--) {
+      const tk = Math.max(0, t - k * 0.04);
+      const pos = bezier(tk);
+      const a = (1 - k / trailCount) * 0.7 * (1 - t * 0.6);
+      ctx.fillStyle = rgba('#ff3da4', a);
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#ff3da4';
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, Math.max(1.2, 3 - k * 0.25), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Head
+    const head = bezier(t);
+    ctx.shadowBlur = 22;
+    ctx.shadowColor = '#fff5e0';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.beginPath();
+    ctx.arc(head.x, head.y, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** Faint cyan/magenta scar shown on a portal pair after a successful landing. */
+  function drawPortalScar(
+    ctx: CanvasRenderingContext2D,
+    slash: PortalSlash,
+    color: string,
+  ) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = rgba(color, 0.22);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(slash.a.x, slash.a.y);
+    ctx.lineTo(slash.b.x, slash.b.y);
+    ctx.stroke();
+    ctx.restore();
   }
 
   function redraw() {
@@ -420,18 +738,30 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     }
 
     // Portals (drawn over everything except the burst)
-    if (portals && portals.length > 0) {
-      const pulse = ((performance.now() - portalAnimStartRef.current) / 1400) % 1;
+    if (hasPortals) {
+      const now = performance.now();
+      const pulse = ((now - portalAnimStartRef.current) / 1400) % 1;
       const slashes = portalSlashes();
+      const ps = portalStateRef.current;
       slashes.forEach((pair, idx) => {
+        const used = usedPortalsRef.current.has(idx);
+        const isPending = ps.mode === 'pending' && ps.pairIndex === idx;
+        const msSinceCapture = isPending && ps.mode === 'pending' ? now - ps.capturedAt : 0;
         drawPortalPair(
           ctx,
           pair.entry,
           pair.exit,
-          usedPortalsRef.current.has(idx),
+          used,
+          isPending,
+          msSinceCapture,
           pulse,
+          now,
         );
       });
+    }
+
+    if (landingBurstRef.current.length > 0) {
+      drawLandingBurst(ctx);
     }
 
     if (burstParticlesRef.current.length > 0) {
@@ -634,60 +964,134 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     return { point: guided.point, onTrack: guided.onTrack };
   }
 
-  /** Apply accumulated portal teleport offset to a canvas-space point. */
-  function applyTeleportOffset(p: Point): Point {
-    return {
-      x: p.x + teleportOffsetRef.current.dx,
-      y: p.y + teleportOffsetRef.current.dy,
-      t: p.t,
-    };
+  /**
+   * Generous landing-ring radius around an OUT slash midpoint. Sized to ~2× the
+   * default slash half-length, with a pixel floor so it stays hittable on small
+   * canvases.
+   */
+  function landingRadius(): number {
+    const { w, h } = sizeRef.current;
+    const padding = 36;
+    const size = Math.min(w, h) - padding * 2;
+    return Math.max(36, 0.18 * size);
   }
 
   /**
-   * Detect if the segment from the LAST stroke point to the candidate point
-   * crosses an unused portal entry slash. If so, mark the prior point as a
-   * teleport boundary, accumulate the offset (entry slash midpoint → exit
-   * slash midpoint), and return the offset-applied next point.
+   * If the live stroke segment crosses an unused IN slash, transition into the
+   * `pending` portal state: mark a teleport break on the last point, freeze
+   * subsequent drawing, fire the timer pause, and queue capture + comet
+   * animations. Returns true if the portal was triggered.
    */
-  function maybeTeleport(point: Point): Point {
-    if (!portals || portals.length === 0) return point;
-    if (pathRef.current.length === 0) return point;
+  function maybeEnterPortal(point: Point): boolean {
+    if (portalStateRef.current.mode !== 'tracing') return false;
+    if (!hasPortals) return false;
+    if (pathRef.current.length === 0) return false;
     const prev = pathRef.current[pathRef.current.length - 1];
     const slashes = portalSlashes();
     for (let i = 0; i < slashes.length; i++) {
       if (usedPortalsRef.current.has(i)) continue;
-      const { entry, exit } = slashes[i];
+      const { entry } = slashes[i];
       if (segmentsIntersect(prev, point, entry.a, entry.b)) {
-        usedPortalsRef.current.add(i);
-        if (pathRef.current.length > 0) {
-          const last = pathRef.current[pathRef.current.length - 1];
-          pathRef.current[pathRef.current.length - 1] = { ...last, teleport: true };
-        }
-        const offDx = exit.p.x - entry.p.x;
-        const offDy = exit.p.y - entry.p.y;
-        teleportOffsetRef.current = {
-          dx: teleportOffsetRef.current.dx + offDx,
-          dy: teleportOffsetRef.current.dy + offDy,
+        // Auto-extend the player's stroke to the canonical IN point (which is
+        // the segment's last target point — the closure of a closed shape, or
+        // the endpoint of an open shape). This makes the visual shape fully
+        // close instead of leaving a gap where the stroke happened to cross
+        // the slash a few pixels short of the curve's actual end.
+        pathRef.current.push({
+          x: entry.p.x,
+          y: entry.p.y,
+          t: point.t,
+          teleport: true,
+        });
+        portalStateRef.current = {
+          mode: 'pending',
+          pairIndex: i,
+          capturedAt: performance.now(),
+          liftedAt: null,
         };
         sfx.unlock();
         haptics.tap();
-        return {
-          x: point.x + offDx,
-          y: point.y + offDy,
-          t: point.t,
-        };
+        onPortalPause?.();
+        return true;
       }
     }
-    return point;
+    return false;
+  }
+
+  function triggerLandingBurst(
+    touchPoint: { x: number; y: number },
+    exitMid: { x: number; y: number },
+  ) {
+    const palette = ['#ff3da4', '#3df0ff', '#ffe83d', '#fff5e0', '#a4ff3d'];
+    const now = performance.now();
+    const dx = exitMid.x - touchPoint.x;
+    const dy = exitMid.y - touchPoint.y;
+    const baseAngle = Math.atan2(dy, dx);
+    for (let i = 0; i < 24; i++) {
+      const angle = baseAngle + (Math.random() - 0.5) * 1.8;
+      const speed = 100 + Math.random() * 90;
+      landingBurstRef.current.push({
+        x: touchPoint.x,
+        y: touchPoint.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        startedAt: now,
+        hue: palette[i % palette.length],
+      });
+    }
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!enabled || resultMode) return;
+
+    // If a portal is pending and the player has lifted, this tap is a "place" attempt.
+    const ps = portalStateRef.current;
+    if (ps.mode === 'pending' && ps.liftedAt != null) {
+      const slashes = portalSlashes();
+      const pair = slashes[ps.pairIndex];
+      if (!pair) {
+        // Defensive — shouldn't happen, but recover.
+        portalStateRef.current = { mode: 'tracing' };
+        return;
+      }
+      const raw = localPoint(e.nativeEvent);
+      const exitMid = pair.exit.p;
+      const dist = Math.hypot(raw.x - exitMid.x, raw.y - exitMid.y);
+      if (dist <= landingRadius()) {
+        // Successful landing.
+        e.preventDefault();
+        (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+        drawingRef.current = true;
+        usedPortalsRef.current.add(ps.pairIndex);
+        portalStateRef.current = { mode: 'tracing' };
+        // Anchor the resumed stroke at the canonical OUT midpoint so the line
+        // and the target path stay aligned, regardless of where in the ring
+        // the player tapped.
+        const anchor: Point = { x: exitMid.x, y: exitMid.y, t: performance.now() };
+        pathRef.current.push(anchor);
+        rawHistoryRef.current = [anchor];
+        onTrackRef.current = false;
+        triggerLandingBurst(raw, exitMid);
+        sfx.unlock();
+        haptics.tap();
+        onPortalResume?.();
+        haptics.start();
+        sfx.start();
+        redraw();
+        return;
+      }
+      // Outside the ring — soft reject, stay pending.
+      sfx.tap();
+      return;
+    }
+
+    // Fresh stroke start.
     e.preventDefault();
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     drawingRef.current = true;
-    teleportOffsetRef.current = { dx: 0, dy: 0 };
     usedPortalsRef.current = new Set();
+    portalStateRef.current = { mode: 'tracing' };
+    landingBurstRef.current = [];
     const raw = localPoint(e.nativeEvent);
     rawHistoryRef.current = [raw];
     const { point, onTrack } = transformIncoming(raw);
@@ -701,30 +1105,48 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
 
   function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!enabled || !drawingRef.current || resultMode) return;
+    // While a portal is pending, the line is frozen at IN — drop pointermoves.
+    if (portalStateRef.current.mode === 'pending') return;
     e.preventDefault();
     const raw = localPoint(e.nativeEvent);
-    // Translate raw finger position by accumulated portal offsets to get the
-    // virtual canvas position the line should appear at.
-    const virtualRaw = applyTeleportOffset(raw);
-    const lastVirtual = rawHistoryRef.current[rawHistoryRef.current.length - 1];
-    if (
-      lastVirtual &&
-      Math.hypot(virtualRaw.x - lastVirtual.x, virtualRaw.y - lastVirtual.y) < 1.2
-    )
-      return;
-    rawHistoryRef.current.push(virtualRaw);
+    const lastRaw = rawHistoryRef.current[rawHistoryRef.current.length - 1];
+    if (lastRaw && Math.hypot(raw.x - lastRaw.x, raw.y - lastRaw.y) < 1.2) return;
+    rawHistoryRef.current.push(raw);
     if (rawHistoryRef.current.length > 4) rawHistoryRef.current.shift();
-    const { point, onTrack } = transformIncoming(virtualRaw);
+    const { point, onTrack } = transformIncoming(raw);
     onTrackRef.current = onTrack;
-    // Check if this virtual point lands inside an unused portal entry — if so,
-    // mark a line break and shift the offset so subsequent moves appear at exit.
-    const portalAware = maybeTeleport(point);
-    pathRef.current.push(portalAware);
+    // If this segment crosses an unused IN slash, latch into pending state
+    // and don't append the candidate point — the line stops at the prior point
+    // (which is now teleport-marked).
+    if (maybeEnterPortal(point)) {
+      redraw();
+      return;
+    }
+    pathRef.current.push(point);
     redraw();
   }
 
   function onPointerEnd(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!drawingRef.current) return;
+
+    // Mid-portal lift: the stroke is paused, not finished. Stay in pending,
+    // record the lift timestamp, and wait for the next pointerdown.
+    const ps = portalStateRef.current;
+    if (ps.mode === 'pending') {
+      portalStateRef.current = { ...ps, liftedAt: performance.now() };
+      drawingRef.current = false;
+      onTrackRef.current = false;
+      try {
+        (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+      } catch {
+        /* noop */
+      }
+      haptics.stop();
+      sfx.stop();
+      redraw();
+      return;
+    }
+
     drawingRef.current = false;
     onTrackRef.current = false;
     try {
@@ -809,6 +1231,36 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       ctx.arc(p.x, p.y, 2.6 + (1 - t) * 1.6, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.restore();
+    ctx.shadowBlur = 0;
+  }
+
+  /**
+   * Animate the OUT-landing burst: integrates particle positions in-place each
+   * frame (driven by the portal RAF) and culls expired ones.
+   */
+  function drawLandingBurst(ctx: CanvasRenderingContext2D) {
+    const now = performance.now();
+    const remaining: typeof landingBurstRef.current = [];
+    ctx.save();
+    for (const p of landingBurstRef.current) {
+      const t = (now - p.startedAt) / 480;
+      if (t >= 1) continue;
+      const u = 1 - t;
+      p.x += p.vx * 0.016 * u;
+      p.y += p.vy * 0.016 * u;
+      p.vx *= 0.92;
+      p.vy *= 0.92;
+      const alpha = u * 0.95;
+      ctx.fillStyle = rgba(p.hue, alpha);
+      ctx.shadowBlur = 18;
+      ctx.shadowColor = rgba(p.hue, alpha);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.2 + u * 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      remaining.push(p);
+    }
+    landingBurstRef.current = remaining;
     ctx.restore();
     ctx.shadowBlur = 0;
   }

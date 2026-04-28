@@ -71,6 +71,8 @@ export default function ChallengeScreen({
   const phaseRef = useRef<Phase>('armed');
   /** When set, the elapsed timer is paused — used for portal lift-and-place. */
   const portalPausedAtRef = useRef<number | null>(null);
+  /** Timer + raf handles for the flash memorize window — cleared on retry/unmount. */
+  const flashTimerRef = useRef<{ timeout: number; raf: number } | null>(null);
   const [phase, setPhase] = useState<Phase>('armed');
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<AttemptResult | null>(null);
@@ -101,6 +103,38 @@ export default function ChallengeScreen({
   const isFlashChallenge = flashGuideMs > 0;
   const [memorizeRemainingMs, setMemorizeRemainingMs] = useState(0);
 
+  function cancelFlashIntro() {
+    const t = flashTimerRef.current;
+    if (!t) return;
+    window.clearTimeout(t.timeout);
+    cancelAnimationFrame(t.raf);
+    flashTimerRef.current = null;
+  }
+
+  function startFlashIntro() {
+    cancelFlashIntro();
+    changePhase('memorize');
+    setMemorizeRemainingMs(flashGuideMs);
+    const startedAt = performance.now();
+    let raf = 0;
+    const tickCountdown = () => {
+      const remaining = Math.max(0, flashGuideMs - (performance.now() - startedAt));
+      setMemorizeRemainingMs(remaining);
+      if (remaining > 0) {
+        raf = requestAnimationFrame(tickCountdown);
+        if (flashTimerRef.current) flashTimerRef.current.raf = raf;
+      }
+    };
+    raf = requestAnimationFrame(tickCountdown);
+    const timeout = window.setTimeout(() => {
+      flashTimerRef.current = null;
+      cancelAnimationFrame(raf);
+      setMemorizeRemainingMs(0);
+      changePhase('armed');
+    }, flashGuideMs);
+    flashTimerRef.current = { timeout, raf };
+  }
+
   useEffect(() => {
     canvasRef.current?.reset();
     setElapsed(0);
@@ -112,29 +146,16 @@ export default function ChallengeScreen({
     startTimeRef.current = null;
     portalPausedAtRef.current = null;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    cancelFlashIntro();
 
     if (isFlashChallenge) {
-      changePhase('memorize');
-      setMemorizeRemainingMs(flashGuideMs);
-      const startedAt = performance.now();
-      let countdownRaf = 0;
-      const tickCountdown = () => {
-        const remaining = Math.max(0, flashGuideMs - (performance.now() - startedAt));
-        setMemorizeRemainingMs(remaining);
-        if (remaining > 0) countdownRaf = requestAnimationFrame(tickCountdown);
-      };
-      countdownRaf = requestAnimationFrame(tickCountdown);
-      const id = window.setTimeout(() => {
-        cancelAnimationFrame(countdownRaf);
-        setMemorizeRemainingMs(0);
-        changePhase('armed');
-      }, flashGuideMs);
+      startFlashIntro();
       return () => {
-        window.clearTimeout(id);
-        cancelAnimationFrame(countdownRaf);
+        cancelFlashIntro();
       };
     }
     changePhase('armed');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challenge.id, isFlashChallenge, flashGuideMs]);
 
   useEffect(() => () => {
@@ -245,23 +266,7 @@ export default function ChallengeScreen({
     setMissFlicker(false);
     portalPausedAtRef.current = null;
     if (isFlashChallenge) {
-      // Re-run the memorize flash on retry so the player gets another peek
-      // before they must trace from memory.
-      changePhase('memorize');
-      setMemorizeRemainingMs(flashGuideMs);
-      const startedAt = performance.now();
-      let countdownRaf = 0;
-      const tickCountdown = () => {
-        const remaining = Math.max(0, flashGuideMs - (performance.now() - startedAt));
-        setMemorizeRemainingMs(remaining);
-        if (remaining > 0) countdownRaf = requestAnimationFrame(tickCountdown);
-      };
-      countdownRaf = requestAnimationFrame(tickCountdown);
-      window.setTimeout(() => {
-        cancelAnimationFrame(countdownRaf);
-        setMemorizeRemainingMs(0);
-        changePhase('armed');
-      }, flashGuideMs);
+      startFlashIntro();
       return;
     }
     changePhase('armed');

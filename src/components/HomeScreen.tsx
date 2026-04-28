@@ -63,11 +63,33 @@ export default function HomeScreen({
       `[data-level-id="${CSS.escape(focusChallengeId)}"]`,
     );
     if (!target) return;
-    const rootBox = root.getBoundingClientRect();
-    const targetBox = target.getBoundingClientRect();
-    const offset = targetBox.top - rootBox.top + root.scrollTop - rootBox.height / 2 + targetBox.height / 2;
-    root.scrollTo({ top: Math.max(0, offset), behavior: 'auto' });
     didFocusRef.current = true;
+    // Find the nearest scrollable ancestor — could be `root` or could be the
+    // viewport itself (the page scrolls when the wrapper uses min-height).
+    const findScroller = (el: HTMLElement | null): HTMLElement | Window => {
+      for (let cur = el; cur; cur = cur.parentElement) {
+        const cs = window.getComputedStyle(cur);
+        if (
+          (cs.overflowY === 'auto' || cs.overflowY === 'scroll') &&
+          cur.scrollHeight > cur.clientHeight
+        ) {
+          return cur;
+        }
+      }
+      return window;
+    };
+    const scroller = findScroller(target);
+    const targetBox = target.getBoundingClientRect();
+    if (scroller === window) {
+      const viewportH = window.innerHeight;
+      const top = window.scrollY + targetBox.top - viewportH / 2 + targetBox.height / 2;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
+    } else {
+      const el = scroller as HTMLElement;
+      const elBox = el.getBoundingClientRect();
+      const top = el.scrollTop + targetBox.top - elBox.top - elBox.height / 2 + targetBox.height / 2;
+      el.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
+    }
   }, [focusChallengeId]);
 
   function toggleHaptics() {

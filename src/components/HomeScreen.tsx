@@ -175,8 +175,6 @@ export default function HomeScreen({
         </div>
       </div>
 
-      <HowItWorks />
-
       {CHAPTERS.map((chap) => (
         <LevelMap
           key={chap.id}
@@ -186,6 +184,8 @@ export default function HomeScreen({
           onPickChallenge={onPickChallenge}
         />
       ))}
+
+      <HowItWorks />
 
       <p className="text-center text-[11px] text-splat-paper/55 mt-1">
         Earn points by setting best scores. Each level's best counts once.

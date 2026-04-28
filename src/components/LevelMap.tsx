@@ -12,6 +12,8 @@ import type { AttemptResult } from '../game/types';
 import ShapePreview from './ShapePreview';
 import { haptics } from '../game/haptics';
 import { sfx } from '../game/audio';
+import colorfulBricksUrl from '../../assets/ColorfulBricks.png';
+import woodPanelUrl from '../../assets/WoodPanelPaintBG.png';
 
 interface Props {
   chapter: ChapterMeta;
@@ -211,31 +213,47 @@ export default function LevelMap({
     return { puffs, particles, sparks };
   }, [levels.length]);
 
+  const textureUrl = chapter.id === 1 ? colorfulBricksUrl : woodPanelUrl;
+  const tintGradient =
+    chapter.id === 1
+      ? 'linear-gradient(180deg, rgba(20,18,38,0.52) 0%, rgba(10,8,22,0.68) 100%)'
+      : 'linear-gradient(180deg, rgba(28,12,32,0.45) 0%, rgba(16,6,20,0.68) 100%)';
+
+  const textureSize = chapter.id === 2 ? '100% 100%' : 'cover';
+
   const gateBanner = (
     <div
       className="relative px-5 py-4 mb-4 overflow-hidden"
       style={{
-        background:
-          chapter.id === 1
-            ? 'linear-gradient(180deg, rgba(20,18,38,0.96) 0%, rgba(10,8,22,0.96) 100%)'
-            : 'linear-gradient(180deg, rgba(28,12,32,0.96) 0%, rgba(16,6,20,0.96) 100%)',
+        backgroundImage: `${tintGradient}, url(${textureUrl})`,
+        backgroundSize: `cover, ${textureSize}`,
+        backgroundPosition: 'center, center',
+        backgroundRepeat: 'no-repeat, no-repeat',
         border: `2.5px solid ${accent}`,
         borderRadius: 22,
         boxShadow: `0 0 0 3px #0a0708, 6px 6px 0 0 #0a0708, inset 0 0 32px ${accentSoft}`,
       }}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="relative flex items-center justify-between gap-3">
         <div>
           <div
             className="text-poster text-[10px] tracking-[0.34em]"
-            style={{ color: accent, textShadow: `0 0 12px ${accentSoft}` }}
+            style={{ color: accent, textShadow: `0 0 12px ${accentSoft}, 0 2px 4px #000` }}
           >
             {chapter.title}
           </div>
-          <div className="text-poster text-xl text-splat-paper text-sticker leading-tight mt-1">
+          <div
+            className="text-poster text-xl text-splat-paper text-sticker leading-tight mt-1"
+            style={{ textShadow: '0 2px 6px rgba(0,0,0,0.85)' }}
+          >
             {chapter.subtitle}
           </div>
-          <div className="text-[11px] text-splat-paper/55 mt-1">{chapter.blurb}</div>
+          <div
+            className="text-[11px] text-splat-paper/80 mt-1"
+            style={{ textShadow: '0 1px 3px rgba(0,0,0,0.85)' }}
+          >
+            {chapter.blurb}
+          </div>
         </div>
         {!open && (
           <div
@@ -697,3 +715,4 @@ function FeatureCard({
     </button>
   );
 }
+

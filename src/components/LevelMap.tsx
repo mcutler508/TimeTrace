@@ -24,6 +24,21 @@ const ROW_PX = 150;
 const TOP_PAD_PX = 90;
 const SNAKE_AMPLITUDE = 24;
 
+const RAINBOW_STOPS = [
+  { offset: '0%', color: '#ff3da4' },
+  { offset: '16.7%', color: '#ff7a3d' },
+  { offset: '33.3%', color: '#ffe83d' },
+  { offset: '50%', color: '#a4ff3d' },
+  { offset: '66.7%', color: '#3df0ff' },
+  { offset: '83.3%', color: '#a44dff' },
+  { offset: '100%', color: '#ff3da4' },
+];
+const RAINBOW_PALETTE = ['#ff3da4', '#ff7a3d', '#ffe83d', '#a4ff3d', '#3df0ff', '#a44dff'];
+const PARTICLES_PER_SEGMENT = 8;
+const SPARKS_PER_SEGMENT = 22;
+const GRADIENT_CYCLE_PX = 540;
+const RAINBOW_FLOW_DURATION = '6.3s';
+
 function starsForScore(score: number): number {
   if (score >= 90) return 3;
   if (score >= 75) return 2;
@@ -85,14 +100,93 @@ export default function LevelMap({
     return d;
   }, [levels.length]);
 
-  let highestPlayed = -1;
-  for (let i = 0; i < levels.length; i++) {
-    if (bestScores[levels[i].id]) highestPlayed = i;
-  }
-  const trailLitRatio =
-    levels.length > 1
-      ? Math.max(0, Math.min(1, (highestPlayed + 1) / levels.length))
-      : 0;
+  const { particles, sparks } = useMemo(() => {
+    type Dot = {
+      x: number;
+      y: number;
+      size: number;
+      color: string;
+      delay: number;
+      duration: number;
+    };
+    const particles: Dot[] = [];
+    const sparks: Dot[] = [];
+    if (levels.length < 2) return { particles, sparks };
+
+    let pCounter = 0;
+    let sCounter = 0;
+    for (let i = 0; i < levels.length - 1; i++) {
+      const p0x = nodeXPercent(i);
+      const p0y = nodeY(i);
+      const p3x = nodeXPercent(i + 1);
+      const p3y = nodeY(i + 1);
+      const p1x = p0x;
+      const p1y = p0y + ROW_PX * 0.55;
+      const p2x = p3x;
+      const p2y = p3y - ROW_PX * 0.55;
+
+      const samplePoint = (t: number) => {
+        const u = 1 - t;
+        return {
+          x:
+            u * u * u * p0x +
+            3 * u * u * t * p1x +
+            3 * u * t * t * p2x +
+            t * t * t * p3x,
+          y:
+            u * u * u * p0y +
+            3 * u * u * t * p1y +
+            3 * u * t * t * p2y +
+            t * t * t * p3y,
+        };
+      };
+
+      // Chunky stardust — bigger, slower, sit close to the tube
+      for (let k = 0; k < PARTICLES_PER_SEGMENT; k++) {
+        const t = (k + 0.5) / PARTICLES_PER_SEGMENT;
+        const { x, y } = samplePoint(t);
+        const seed = i * 13 + k * 7;
+        const jx = Math.sin(seed * 1.7) * 2.4;
+        const jy = Math.cos(seed * 2.3) * 9;
+        const sizeBase = 2.4 + (Math.sin(seed * 0.9) + 1) * 1.7;
+        const colorIndex =
+          (pCounter + Math.floor(t * RAINBOW_PALETTE.length)) % RAINBOW_PALETTE.length;
+        particles.push({
+          x: x + jx,
+          y: y + jy,
+          size: sizeBase,
+          color: RAINBOW_PALETTE[colorIndex],
+          delay: (pCounter * 0.17) % 2.6,
+          duration: 2.2 + ((seed % 7) * 0.13),
+        });
+        pCounter += 1;
+      }
+
+      // Fine glitter — lots of tiny sub-pixel sparks around and along the tube
+      for (let k = 0; k < SPARKS_PER_SEGMENT; k++) {
+        const t = (k + 0.5) / SPARKS_PER_SEGMENT;
+        const { x, y } = samplePoint(t);
+        const seed = i * 41 + k * 5;
+        // Wider scatter than chunky particles — true glitter cloud
+        const jx = Math.sin(seed * 2.1) * 4.5 + Math.cos(seed * 0.7) * 1.6;
+        const jy = Math.cos(seed * 1.3) * 16 + Math.sin(seed * 0.5) * 4;
+        const tiny = 0.7 + (Math.sin(seed * 1.1) + 1) * 0.55; // 0.7 .. 1.8
+        const colorIndex =
+          (sCounter * 3 + Math.floor(t * RAINBOW_PALETTE.length)) %
+          RAINBOW_PALETTE.length;
+        sparks.push({
+          x: x + jx,
+          y: y + jy,
+          size: tiny,
+          color: RAINBOW_PALETTE[colorIndex],
+          delay: (sCounter * 0.071) % 1.8,
+          duration: 0.9 + ((seed % 11) * 0.07),
+        });
+        sCounter += 1;
+      }
+    }
+    return { particles, sparks };
+  }, [levels.length]);
 
   const gateBanner = (
     <div
@@ -163,54 +257,202 @@ export default function LevelMap({
           aria-hidden
         >
           <defs>
-            <filter
-              id={`trail-glow-${chapter.id}`}
-              x="-20%"
-              y="-20%"
-              width="140%"
-              height="140%"
+            <linearGradient
+              id={`rainbow-trail-${chapter.id}`}
+              gradientUnits="userSpaceOnUse"
+              x1={50}
+              y1={0}
+              x2={50}
+              y2={GRADIENT_CYCLE_PX}
+              spreadMethod="repeat"
             >
-              <feGaussianBlur stdDeviation="1.6" />
+              {RAINBOW_STOPS.map((s) => (
+                <stop key={s.offset} offset={s.offset} stopColor={s.color} />
+              ))}
+              <animateTransform
+                attributeName="gradientTransform"
+                type="translate"
+                from={`0 0`}
+                to={`0 -${GRADIENT_CYCLE_PX}`}
+                dur={RAINBOW_FLOW_DURATION}
+                repeatCount="indefinite"
+              />
+            </linearGradient>
+
+            <filter
+              id={`trail-bloom-${chapter.id}`}
+              x="-20%"
+              y="-10%"
+              width="140%"
+              height="120%"
+            >
+              <feGaussianBlur stdDeviation="2.4" />
             </filter>
           </defs>
 
+          {/* 1. Outermost atmospheric halo — broad blurred wash */}
           <path
             d={trailD}
             fill="none"
-            stroke={accent}
-            strokeWidth={6}
+            stroke="#e8f4ff"
+            strokeWidth={22}
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity={0.32}
+            opacity={0.16}
             vectorEffect="non-scaling-stroke"
-            filter={`url(#trail-glow-${chapter.id})`}
+            filter={`url(#trail-bloom-${chapter.id})`}
           />
 
+          {/* 2. Rainbow halo — wide blurred rainbow color cast */}
           <path
             d={trailD}
             fill="none"
-            stroke={accent}
-            strokeWidth={2}
-            strokeDasharray="4 6"
+            stroke={`url(#rainbow-trail-${chapter.id})`}
+            strokeWidth={16}
             strokeLinecap="round"
-            opacity={0.38}
+            strokeLinejoin="round"
+            opacity={0.55}
+            vectorEffect="non-scaling-stroke"
+            filter={`url(#trail-bloom-${chapter.id})`}
+          />
+
+          {/* 3. Rainbow body — saturated tube body */}
+          <path
+            d={trailD}
+            fill="none"
+            stroke={`url(#rainbow-trail-${chapter.id})`}
+            strokeWidth={9}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.95}
             vectorEffect="non-scaling-stroke"
           />
 
-          {trailLitRatio > 0 && (
-            <path
-              d={trailD}
-              fill="none"
-              stroke={accent}
-              strokeWidth={2.6}
-              strokeLinecap="round"
-              opacity={0.95}
-              vectorEffect="non-scaling-stroke"
-              pathLength={1}
-              strokeDasharray={`${trailLitRatio} ${1 - trailLitRatio}`}
-            />
-          )}
+          {/* 4. Dark wireframe ribs — wide dashed near-black segmenting the tube */}
+          <path
+            d={trailD}
+            fill="none"
+            stroke="#0a0708"
+            strokeWidth={11}
+            strokeDasharray="0.5 7"
+            strokeLinecap="butt"
+            opacity={0.45}
+            vectorEffect="non-scaling-stroke"
+          />
+
+          {/* 5. Bright wireframe ribs — slim white edges next to the dark ribs */}
+          <path
+            className="trail-rib-flow"
+            d={trailD}
+            fill="none"
+            stroke="#fff5e0"
+            strokeWidth={11.5}
+            strokeDasharray="0.35 7.15"
+            strokeDashoffset="0.7"
+            strokeLinecap="butt"
+            opacity={0.5}
+            vectorEffect="non-scaling-stroke"
+          />
+
+          {/* 6. Grit speckle — fine dark micro-dashes along the tube core */}
+          <path
+            d={trailD}
+            fill="none"
+            stroke="#0a0708"
+            strokeWidth={2.6}
+            strokeDasharray="0.3 1.6"
+            strokeLinecap="round"
+            opacity={0.5}
+            vectorEffect="non-scaling-stroke"
+          />
+
+          {/* 7. White inner core — the 3D-tube highlight ridge */}
+          <path
+            d={trailD}
+            fill="none"
+            stroke="#fff5e0"
+            strokeWidth={2.4}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.85}
+            vectorEffect="non-scaling-stroke"
+          />
+
+          {/* 8. Centerline highlight — pinpoint white spine */}
+          <path
+            d={trailD}
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth={1}
+            strokeLinecap="round"
+            opacity={0.95}
+            vectorEffect="non-scaling-stroke"
+          />
+
+          {/* 9. Stitched centerline — dotted micro-pattern, slow drift backward */}
+          <path
+            className="trail-stitch"
+            d={trailD}
+            fill="none"
+            stroke="#0a0708"
+            strokeWidth={1}
+            strokeDasharray="0.35 1.05"
+            strokeLinecap="round"
+            opacity={0.7}
+            vectorEffect="non-scaling-stroke"
+          />
+
+          {/* 10. Animated shimmer overlay — flowing dashes for motion */}
+          <path
+            className="trail-shimmer"
+            d={trailD}
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeDasharray="1.5 16"
+            opacity={0.95}
+            vectorEffect="non-scaling-stroke"
+          />
         </svg>
+
+        {/* Stardust — chunky rainbow particles flanking the tube */}
+        {particles.map((p, idx) => (
+          <span
+            key={`p${idx}`}
+            aria-hidden
+            className="trail-particle absolute rounded-full pointer-events-none"
+            style={{
+              left: `${p.x}%`,
+              top: `${(p.y / totalHeight) * 100}%`,
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              background: p.color,
+              boxShadow: `0 0 ${p.size * 3}px ${p.color}, 0 0 ${p.size * 1.4}px ${p.color}`,
+              animationDelay: `${p.delay}s`,
+              animationDuration: `${p.duration}s`,
+            }}
+          />
+        ))}
+
+        {/* Glitter — fine, fast-twinkling sub-pixel sparks */}
+        {sparks.map((p, idx) => (
+          <span
+            key={`s${idx}`}
+            aria-hidden
+            className="trail-spark absolute rounded-full pointer-events-none"
+            style={{
+              left: `${p.x}%`,
+              top: `${(p.y / totalHeight) * 100}%`,
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              background: p.color,
+              boxShadow: `0 0 ${p.size * 4}px ${p.color}`,
+              animationDelay: `${p.delay}s`,
+              animationDuration: `${p.duration}s`,
+            }}
+          />
+        ))}
 
         {levels.map((c, i) => {
           const globalIdx = startGlobalIdx + i;

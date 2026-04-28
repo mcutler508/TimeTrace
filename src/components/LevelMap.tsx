@@ -678,7 +678,7 @@ function FeatureCard({
         />
         <ShapePreview
           shape={challenge.shape}
-          size={75}
+          size={66}
           stroke={shapeAccent.stroke}
           glow
         />

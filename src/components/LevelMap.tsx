@@ -67,13 +67,21 @@ export default function LevelMap({
   const levels = challengesByChapter(chapter.id);
   const startGlobalIdx = CHALLENGES.findIndex((c) => c.chapter === chapter.id);
   const accent =
-    chapter.id === 1 ? '#3df0ff' : chapter.id === 3 ? '#a44dff' : '#ff3da4';
+    chapter.id === 1
+      ? '#3df0ff'
+      : chapter.id === 3
+        ? '#a44dff'
+        : chapter.id === 4
+          ? '#ffe83d'
+          : '#ff3da4';
   const accentSoft =
     chapter.id === 1
       ? 'rgba(61,240,255,0.55)'
       : chapter.id === 3
         ? 'rgba(164, 77, 255, 0.55)'
-        : 'rgba(255,61,164,0.55)';
+        : chapter.id === 4
+          ? 'rgba(255, 232, 61, 0.55)'
+          : 'rgba(255,61,164,0.55)';
 
   const totalHeight = TOP_PAD_PX * 2 + Math.max(0, levels.length - 1) * ROW_PX;
 
@@ -224,9 +232,12 @@ export default function LevelMap({
       ? 'linear-gradient(180deg, rgba(20,18,38,0.52) 0%, rgba(10,8,22,0.68) 100%)'
       : chapter.id === 3
         ? 'linear-gradient(180deg, rgba(28,16,52,0.55) 0%, rgba(14,8,32,0.72) 100%)'
-        : 'linear-gradient(180deg, rgba(28,12,32,0.45) 0%, rgba(16,6,20,0.68) 100%)';
+        : chapter.id === 4
+          ? 'linear-gradient(180deg, rgba(34,28,8,0.55) 0%, rgba(20,14,4,0.72) 100%)'
+          : 'linear-gradient(180deg, rgba(28,12,32,0.45) 0%, rgba(16,6,20,0.68) 100%)';
 
-  const textureSize = chapter.id === 2 || chapter.id === 3 ? '100% 100%' : 'cover';
+  const textureSize =
+    chapter.id === 2 || chapter.id === 3 || chapter.id === 4 ? '100% 100%' : 'cover';
 
   const gateBanner = (
     <div
@@ -482,6 +493,7 @@ export default function LevelMap({
           const xPct = nodeXPercent(i);
           const yPct = (nodeY(i) / totalHeight) * 100;
           const hasPortals = !!c.segments?.length;
+          const isFlash = !!c.flashGuideMs;
           const pointsNeeded = Math.max(0, c.unlockThreshold - totalPoints);
 
           const handleTap = () => {
@@ -505,6 +517,7 @@ export default function LevelMap({
                   bestScore={attempt ? score : null}
                   shapeAccent={shapeAccent}
                   hasPortals={hasPortals}
+                  isFlash={isFlash}
                   onTap={handleTap}
                 />
               ) : (
@@ -514,6 +527,7 @@ export default function LevelMap({
                   unlocked={unlocked}
                   shapeAccent={shapeAccent}
                   hasPortals={hasPortals}
+                  isFlash={isFlash}
                   bestScore={attempt ? score : null}
                   pointsNeeded={pointsNeeded}
                   onTap={handleTap}
@@ -567,6 +581,7 @@ interface SmallNodeProps {
   unlocked: boolean;
   shapeAccent: { stroke: string; soft: string };
   hasPortals: boolean;
+  isFlash: boolean;
   bestScore: number | null;
   pointsNeeded: number;
   onTap: () => void;
@@ -578,6 +593,7 @@ function SmallNode({
   unlocked,
   shapeAccent,
   hasPortals,
+  isFlash,
   bestScore,
   pointsNeeded,
   onTap,
@@ -641,6 +657,15 @@ function SmallNode({
             style={{ background: '#ff3da4', color: '#0a0708' }}
           >
             COMBO
+          </div>
+        )}
+
+        {isFlash && unlocked && (
+          <div
+            className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 text-[8px] font-poster tracking-[0.16em] px-1.5 py-0.5 rounded border-2 border-black whitespace-nowrap"
+            style={{ background: '#ffe83d', color: '#0a0708' }}
+          >
+            FLASH
           </div>
         )}
       </button>
@@ -714,6 +739,7 @@ interface FeatureCardProps {
   bestScore: number | null;
   shapeAccent: { stroke: string; soft: string };
   hasPortals: boolean;
+  isFlash: boolean;
   onTap: () => void;
 }
 
@@ -723,6 +749,7 @@ function FeatureCard({
   bestScore,
   shapeAccent,
   hasPortals,
+  isFlash,
   onTap,
 }: FeatureCardProps) {
   return (
@@ -762,6 +789,14 @@ function FeatureCard({
             style={{ background: '#ff3da4', color: '#0a0708' }}
           >
             COMBO
+          </div>
+        )}
+        {isFlash && (
+          <div
+            className="text-[8px] font-poster tracking-[0.16em] px-1.5 py-0.5 rounded border-2 border-black h-fit"
+            style={{ background: '#ffe83d', color: '#0a0708' }}
+          >
+            FLASH
           </div>
         )}
       </div>

@@ -44,7 +44,7 @@ interface Props {
   ) => AttemptResult;
 }
 
-type Phase = 'armed' | 'running' | 'result';
+type Phase = 'memorize' | 'armed' | 'running' | 'result';
 
 const TIMER_WARM_WINDOW = 0.8;
 
@@ -97,9 +97,12 @@ export default function ChallengeScreen({
     setPhase(next);
   }
 
+  const flashGuideMs = challenge.flashGuideMs ?? 0;
+  const isFlashChallenge = flashGuideMs > 0;
+  const [memorizeRemainingMs, setMemorizeRemainingMs] = useState(0);
+
   useEffect(() => {
     canvasRef.current?.reset();
-    changePhase('armed');
     setElapsed(0);
     setResult(null);
     setWorstSegment(null);
@@ -109,7 +112,30 @@ export default function ChallengeScreen({
     startTimeRef.current = null;
     portalPausedAtRef.current = null;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
-  }, [challenge.id]);
+
+    if (isFlashChallenge) {
+      changePhase('memorize');
+      setMemorizeRemainingMs(flashGuideMs);
+      const startedAt = performance.now();
+      let countdownRaf = 0;
+      const tickCountdown = () => {
+        const remaining = Math.max(0, flashGuideMs - (performance.now() - startedAt));
+        setMemorizeRemainingMs(remaining);
+        if (remaining > 0) countdownRaf = requestAnimationFrame(tickCountdown);
+      };
+      countdownRaf = requestAnimationFrame(tickCountdown);
+      const id = window.setTimeout(() => {
+        cancelAnimationFrame(countdownRaf);
+        setMemorizeRemainingMs(0);
+        changePhase('armed');
+      }, flashGuideMs);
+      return () => {
+        window.clearTimeout(id);
+        cancelAnimationFrame(countdownRaf);
+      };
+    }
+    changePhase('armed');
+  }, [challenge.id, isFlashChallenge, flashGuideMs]);
 
   useEffect(() => () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -218,6 +244,26 @@ export default function ChallengeScreen({
     setPerfectFreeze(false);
     setMissFlicker(false);
     portalPausedAtRef.current = null;
+    if (isFlashChallenge) {
+      // Re-run the memorize flash on retry so the player gets another peek
+      // before they must trace from memory.
+      changePhase('memorize');
+      setMemorizeRemainingMs(flashGuideMs);
+      const startedAt = performance.now();
+      let countdownRaf = 0;
+      const tickCountdown = () => {
+        const remaining = Math.max(0, flashGuideMs - (performance.now() - startedAt));
+        setMemorizeRemainingMs(remaining);
+        if (remaining > 0) countdownRaf = requestAnimationFrame(tickCountdown);
+      };
+      countdownRaf = requestAnimationFrame(tickCountdown);
+      window.setTimeout(() => {
+        cancelAnimationFrame(countdownRaf);
+        setMemorizeRemainingMs(0);
+        changePhase('armed');
+      }, flashGuideMs);
+      return;
+    }
     changePhase('armed');
   }
 
@@ -240,6 +286,15 @@ export default function ChallengeScreen({
   const inPerfectLock = phase === 'armed' && (previousScore ?? 0) >= 85;
   const closedShape = isClosedShape(challenge.shape);
 
+  // Guide opacity is forced full during the memorize flash, then driven to
+  // zero for the remainder of a flash challenge so the player traces from
+  // memory. Non-flash challenges use the existing per-challenge value.
+  const computedGuideOpacity = (() => {
+    if (phase === 'memorize') return 0.85;
+    if (isFlashChallenge && (phase === 'armed' || phase === 'running')) return 0;
+    return Math.min(0.85, challenge.guideOpacity * (inPerfectLock ? 1.6 : 1));
+  })();
+
   const cursorDelta = (() => {
     if (phase === 'running') return elapsed - target;
     if (phase === 'result' && result) return result.timeDelta;
@@ -253,7 +308,7 @@ export default function ChallengeScreen({
       } ${perfectFreeze ? 'perfect-freeze' : ''} ${missFlicker ? 'miss-flicker' : ''}`}
     >
       <header className="flex items-center justify-between gap-3">
-        {onHome && phase === 'armed' ? (
+        {onHome && (phase === 'armed' || phase === 'memorize') ? (
           <button
             onClick={() => {
               haptics.micro();
@@ -335,9 +390,9 @@ export default function ChallengeScreen({
       >
         <DrawingCanvas
           ref={canvasRef}
-          enabled={phase !== 'result'}
+          enabled={phase === 'armed' || phase === 'running'}
           targetUnitPath={targetUnitPath}
-          guideOpacity={Math.min(0.85, challenge.guideOpacity * (inPerfectLock ? 1.6 : 1))}
+          guideOpacity={computedGuideOpacity}
           closedShape={closedShape}
           accentColor={accent.stroke}
           accentSoft={accent.soft}
@@ -378,7 +433,7 @@ export default function ChallengeScreen({
           onDismiss={() => setShowPortalTutorial(false)}
         />
 
-        {phase !== 'result' && (
+        {phase !== 'result' && phase !== 'memorize' && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2">
             <div
               className={`font-poster text-xl tabular-nums px-4 py-1 rounded-full bg-splat-black border-2 border-splat-paper/40 ${
@@ -387,6 +442,31 @@ export default function ChallengeScreen({
               style={timerColorStyle}
             >
               {elapsed.toFixed(2)}s
+            </div>
+          </div>
+        )}
+
+        {phase === 'memorize' && (
+          <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-start pt-3 animate-fadeIn">
+            <div
+              className="text-poster text-xl tracking-[0.3em] px-4 py-1.5 rounded-full bg-splat-black border-2 border-splat-yellow text-splat-yellow"
+              style={{ boxShadow: '0 0 24px rgba(255, 232, 61, 0.55)' }}
+            >
+              MEMORIZE
+            </div>
+            <div className="font-poster text-3xl mt-2 text-splat-yellow tabular-nums text-glow-gold">
+              {(memorizeRemainingMs / 1000).toFixed(1)}s
+            </div>
+          </div>
+        )}
+
+        {isFlashChallenge && phase === 'armed' && (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center animate-fadeIn">
+            <div
+              className="text-poster text-2xl tracking-[0.28em] px-5 py-2 rounded-full bg-splat-black border-2 border-splat-pink text-splat-pink"
+              style={{ boxShadow: '0 0 24px rgba(255, 61, 164, 0.55)' }}
+            >
+              TRACE!
             </div>
           </div>
         )}
@@ -409,8 +489,12 @@ export default function ChallengeScreen({
         elapsed={elapsed}
         cursorDelta={cursorDelta}
         hintText={
-          phase === 'armed'
-            ? 'TOUCH SHAPE · LIFT TO STOP'
+          phase === 'memorize'
+            ? 'STUDY THE SHAPE'
+            : phase === 'armed'
+            ? isFlashChallenge
+              ? 'TRACE FROM MEMORY'
+              : 'TOUCH SHAPE · LIFT TO STOP'
             : phase === 'running'
             ? 'STOP IN THE PERFECT BAND'
             : 'RETRY · NEXT'

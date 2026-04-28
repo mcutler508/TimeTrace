@@ -166,9 +166,11 @@ export function normalizeToUnit(path: Point[]): Point[] {
   const bb = boundingBox(path);
   const scale = Math.max(bb.width, bb.height);
   if (scale === 0) return path.map(() => ({ x: 0.5, y: 0.5 }));
+  const offsetX = (1 - bb.width / scale) / 2;
+  const offsetY = (1 - bb.height / scale) / 2;
   return path.map((p) => ({
-    x: (p.x - bb.minX) / scale + (scale === bb.width ? 0 : (1 - bb.height / scale) / 2),
-    y: (p.y - bb.minY) / scale + (scale === bb.height ? 0 : (1 - bb.width / scale) / 2),
+    x: (p.x - bb.minX) / scale + offsetX,
+    y: (p.y - bb.minY) / scale + offsetY,
   }));
 }
 

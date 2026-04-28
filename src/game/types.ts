@@ -30,6 +30,12 @@ export interface Challenge {
   targetTime: number;
   guideOpacity: number;
   difficulty: Difficulty;
+  /**
+   * When set, the target shape is shown at full opacity for this many ms
+   * before the player can draw; afterwards the guide vanishes and the player
+   * traces from memory ("Flash & Trace" mechanic — Chapter 4 BLITZ).
+   */
+  flashGuideMs?: number;
 }
 
 export interface Point {

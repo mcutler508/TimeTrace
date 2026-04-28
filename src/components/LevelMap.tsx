@@ -34,8 +34,9 @@ const RAINBOW_STOPS = [
   { offset: '100%', color: '#ff3da4' },
 ];
 const RAINBOW_PALETTE = ['#ff3da4', '#ff7a3d', '#ffe83d', '#a4ff3d', '#3df0ff', '#a44dff'];
-const PARTICLES_PER_SEGMENT = 8;
-const SPARKS_PER_SEGMENT = 22;
+const PUFFS_PER_SEGMENT = 6;
+const PARTICLES_PER_SEGMENT = 26;
+const SPARKS_PER_SEGMENT = 80;
 const GRADIENT_CYCLE_PX = 540;
 const RAINBOW_FLOW_DURATION = '6.3s';
 
@@ -100,7 +101,7 @@ export default function LevelMap({
     return d;
   }, [levels.length]);
 
-  const { particles, sparks } = useMemo(() => {
+  const { puffs, particles, sparks } = useMemo(() => {
     type Dot = {
       x: number;
       y: number;
@@ -109,10 +110,12 @@ export default function LevelMap({
       delay: number;
       duration: number;
     };
+    const puffs: Dot[] = [];
     const particles: Dot[] = [];
     const sparks: Dot[] = [];
-    if (levels.length < 2) return { particles, sparks };
+    if (levels.length < 2) return { puffs, particles, sparks };
 
+    let uCounter = 0;
     let pCounter = 0;
     let sCounter = 0;
     for (let i = 0; i < levels.length - 1; i++) {
@@ -141,14 +144,35 @@ export default function LevelMap({
         };
       };
 
-      // Chunky stardust — bigger, slower, sit close to the tube
+      // Soft color puffs — big blurry color clouds that form the nebula body
+      for (let k = 0; k < PUFFS_PER_SEGMENT; k++) {
+        const t = (k + 0.5) / PUFFS_PER_SEGMENT;
+        const { x, y } = samplePoint(t);
+        const seed = i * 23 + k * 11;
+        const jx = Math.sin(seed * 1.3) * 5.5 + Math.cos(seed * 0.4) * 2.5;
+        const jy = Math.cos(seed * 1.7) * 22 + Math.sin(seed * 0.6) * 6;
+        const sizeBase = 7 + (Math.sin(seed * 0.7) + 1) * 4;
+        const colorIndex =
+          (uCounter + Math.floor(t * RAINBOW_PALETTE.length)) % RAINBOW_PALETTE.length;
+        puffs.push({
+          x: x + jx,
+          y: y + jy,
+          size: sizeBase,
+          color: RAINBOW_PALETTE[colorIndex],
+          delay: (uCounter * 0.21) % 3.4,
+          duration: 3.6 + ((seed % 9) * 0.18),
+        });
+        uCounter += 1;
+      }
+
+      // Chunky stardust — mid-size rainbow grains scattered wide
       for (let k = 0; k < PARTICLES_PER_SEGMENT; k++) {
         const t = (k + 0.5) / PARTICLES_PER_SEGMENT;
         const { x, y } = samplePoint(t);
         const seed = i * 13 + k * 7;
-        const jx = Math.sin(seed * 1.7) * 2.4;
-        const jy = Math.cos(seed * 2.3) * 9;
-        const sizeBase = 2.4 + (Math.sin(seed * 0.9) + 1) * 1.7;
+        const jx = Math.sin(seed * 1.7) * 7 + Math.cos(seed * 0.5) * 2.4;
+        const jy = Math.cos(seed * 2.3) * 18 + Math.sin(seed * 0.9) * 5;
+        const sizeBase = 2.2 + (Math.sin(seed * 0.9) + 1) * 1.8;
         const colorIndex =
           (pCounter + Math.floor(t * RAINBOW_PALETTE.length)) % RAINBOW_PALETTE.length;
         particles.push({
@@ -162,15 +186,14 @@ export default function LevelMap({
         pCounter += 1;
       }
 
-      // Fine glitter — lots of tiny sub-pixel sparks around and along the tube
+      // Fine glitter — dense sub-pixel sparks throughout the cloud
       for (let k = 0; k < SPARKS_PER_SEGMENT; k++) {
         const t = (k + 0.5) / SPARKS_PER_SEGMENT;
         const { x, y } = samplePoint(t);
         const seed = i * 41 + k * 5;
-        // Wider scatter than chunky particles — true glitter cloud
-        const jx = Math.sin(seed * 2.1) * 4.5 + Math.cos(seed * 0.7) * 1.6;
-        const jy = Math.cos(seed * 1.3) * 16 + Math.sin(seed * 0.5) * 4;
-        const tiny = 0.7 + (Math.sin(seed * 1.1) + 1) * 0.55; // 0.7 .. 1.8
+        const jx = Math.sin(seed * 2.1) * 12 + Math.cos(seed * 0.7) * 3.5;
+        const jy = Math.cos(seed * 1.3) * 32 + Math.sin(seed * 0.5) * 7;
+        const tiny = 0.6 + (Math.sin(seed * 1.1) + 1) * 0.7;
         const colorIndex =
           (sCounter * 3 + Math.floor(t * RAINBOW_PALETTE.length)) %
           RAINBOW_PALETTE.length;
@@ -180,12 +203,12 @@ export default function LevelMap({
           size: tiny,
           color: RAINBOW_PALETTE[colorIndex],
           delay: (sCounter * 0.071) % 1.8,
-          duration: 0.9 + ((seed % 11) * 0.07),
+          duration: 0.85 + ((seed % 11) * 0.07),
         });
         sCounter += 1;
       }
     }
-    return { particles, sparks };
+    return { puffs, particles, sparks };
   }, [levels.length]);
 
   const gateBanner = (
@@ -281,34 +304,44 @@ export default function LevelMap({
 
             <filter
               id={`trail-bloom-${chapter.id}`}
-              x="-20%"
-              y="-10%"
-              width="140%"
-              height="120%"
+              x="-30%"
+              y="-15%"
+              width="160%"
+              height="130%"
             >
-              <feGaussianBlur stdDeviation="2.4" />
+              <feGaussianBlur stdDeviation="3.6" />
+            </filter>
+
+            <filter
+              id={`trail-soft-${chapter.id}`}
+              x="-40%"
+              y="-20%"
+              width="180%"
+              height="140%"
+            >
+              <feGaussianBlur stdDeviation="6.5" />
             </filter>
           </defs>
 
-          {/* 1. Outermost atmospheric halo — broad blurred wash */}
-          <path
-            d={trailD}
-            fill="none"
-            stroke="#e8f4ff"
-            strokeWidth={22}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity={0.16}
-            vectorEffect="non-scaling-stroke"
-            filter={`url(#trail-bloom-${chapter.id})`}
-          />
-
-          {/* 2. Rainbow halo — wide blurred rainbow color cast */}
+          {/* 1. Outermost rainbow nebula — very broad, blurred rainbow wash forming the cloud */}
           <path
             d={trailD}
             fill="none"
             stroke={`url(#rainbow-trail-${chapter.id})`}
-            strokeWidth={16}
+            strokeWidth={26}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.32}
+            vectorEffect="non-scaling-stroke"
+            filter={`url(#trail-soft-${chapter.id})`}
+          />
+
+          {/* 2. Mid rainbow halo — softer rainbow color cast around the filament */}
+          <path
+            d={trailD}
+            fill="none"
+            stroke={`url(#rainbow-trail-${chapter.id})`}
+            strokeWidth={14}
             strokeLinecap="round"
             strokeLinejoin="round"
             opacity={0.55}
@@ -316,107 +349,66 @@ export default function LevelMap({
             filter={`url(#trail-bloom-${chapter.id})`}
           />
 
-          {/* 3. Rainbow body — saturated tube body */}
+          {/* 3. Rainbow ribbon — slim flowing rainbow stream, the visible particle current */}
           <path
             d={trailD}
             fill="none"
             stroke={`url(#rainbow-trail-${chapter.id})`}
-            strokeWidth={9}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity={0.95}
-            vectorEffect="non-scaling-stroke"
-          />
-
-          {/* 4. Dark wireframe ribs — wide dashed near-black segmenting the tube */}
-          <path
-            d={trailD}
-            fill="none"
-            stroke="#0a0708"
-            strokeWidth={11}
-            strokeDasharray="0.5 7"
-            strokeLinecap="butt"
-            opacity={0.45}
-            vectorEffect="non-scaling-stroke"
-          />
-
-          {/* 5. Bright wireframe ribs — slim white edges next to the dark ribs */}
-          <path
-            className="trail-rib-flow"
-            d={trailD}
-            fill="none"
-            stroke="#fff5e0"
-            strokeWidth={11.5}
-            strokeDasharray="0.35 7.15"
-            strokeDashoffset="0.7"
-            strokeLinecap="butt"
-            opacity={0.5}
-            vectorEffect="non-scaling-stroke"
-          />
-
-          {/* 6. Grit speckle — fine dark micro-dashes along the tube core */}
-          <path
-            d={trailD}
-            fill="none"
-            stroke="#0a0708"
-            strokeWidth={2.6}
-            strokeDasharray="0.3 1.6"
-            strokeLinecap="round"
-            opacity={0.5}
-            vectorEffect="non-scaling-stroke"
-          />
-
-          {/* 7. White inner core — the 3D-tube highlight ridge */}
-          <path
-            d={trailD}
-            fill="none"
-            stroke="#fff5e0"
-            strokeWidth={2.4}
+            strokeWidth={4}
             strokeLinecap="round"
             strokeLinejoin="round"
             opacity={0.85}
             vectorEffect="non-scaling-stroke"
           />
 
-          {/* 8. Centerline highlight — pinpoint white spine */}
+          {/* 4. Bright filament core — thin luminous white spine, the neon thread */}
           <path
             d={trailD}
             fill="none"
             stroke="#ffffff"
-            strokeWidth={1}
+            strokeWidth={1.4}
             strokeLinecap="round"
+            strokeLinejoin="round"
             opacity={0.95}
             vectorEffect="non-scaling-stroke"
           />
 
-          {/* 9. Stitched centerline — dotted micro-pattern, slow drift backward */}
-          <path
-            className="trail-stitch"
-            d={trailD}
-            fill="none"
-            stroke="#0a0708"
-            strokeWidth={1}
-            strokeDasharray="0.35 1.05"
-            strokeLinecap="round"
-            opacity={0.7}
-            vectorEffect="non-scaling-stroke"
-          />
-
-          {/* 10. Animated shimmer overlay — flowing dashes for motion */}
+          {/* 5. Animated shimmer — flowing white dashes traveling along the filament */}
           <path
             className="trail-shimmer"
             d={trailD}
             fill="none"
             stroke="#ffffff"
-            strokeWidth={2}
+            strokeWidth={2.2}
             strokeLinecap="round"
-            strokeDasharray="1.5 16"
-            opacity={0.95}
+            strokeDasharray="1.2 14"
+            opacity={0.9}
             vectorEffect="non-scaling-stroke"
           />
         </svg>
 
-        {/* Stardust — chunky rainbow particles flanking the tube */}
+        {/* Color puffs — soft blurry color clouds forming the nebula body */}
+        {puffs.map((p, idx) => (
+          <span
+            key={`u${idx}`}
+            aria-hidden
+            className="trail-puff absolute rounded-full pointer-events-none"
+            style={{
+              left: `${p.x}%`,
+              top: `${(p.y / totalHeight) * 100}%`,
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              background: p.color,
+              filter: `blur(${p.size * 0.55}px)`,
+              opacity: 0.55,
+              boxShadow: `0 0 ${p.size * 2.4}px ${p.color}`,
+              animationDelay: `${p.delay}s`,
+              animationDuration: `${p.duration}s`,
+            }}
+          />
+        ))}
+
+        {/* Stardust — chunky rainbow particles flanking the filament */}
         {particles.map((p, idx) => (
           <span
             key={`p${idx}`}
@@ -564,7 +556,7 @@ function SmallNode({
       type="button"
       disabled={!unlocked}
       onClick={onTap}
-      className="relative flex items-center justify-center w-[68px] h-[68px] rounded-full transition-transform active:translate-x-[1.5px] active:translate-y-[1.5px]"
+      className="relative flex items-center justify-center w-[75px] h-[75px] rounded-full transition-transform active:translate-x-[1.5px] active:translate-y-[1.5px]"
       style={{
         background: 'rgba(10, 8, 22, 0.96)',
         border: `2.5px solid ${ringColor}`,
@@ -579,7 +571,7 @@ function SmallNode({
     >
       <ShapePreview
         shape={challenge.shape}
-        size={40}
+        size={44}
         stroke={unlocked ? shapeAccent.stroke : '#a44dff'}
         opacity={unlocked ? 1 : 0.35}
         glow={unlocked}
@@ -645,7 +637,7 @@ function FeatureCard({
       onClick={onTap}
       className="relative card-sticker px-4 py-3 text-left transition-transform active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
       style={{
-        width: 152,
+        width: 167,
         background: `linear-gradient(180deg, ${shapeAccent.stroke}33 0%, rgba(18, 14, 36, 0.96) 70%)`,
         boxShadow: `6px 6px 0 0 #0a0708, 0 0 26px ${shapeAccent.soft}`,
       }}
@@ -686,7 +678,7 @@ function FeatureCard({
         />
         <ShapePreview
           shape={challenge.shape}
-          size={60}
+          size={75}
           stroke={shapeAccent.stroke}
           glow
         />

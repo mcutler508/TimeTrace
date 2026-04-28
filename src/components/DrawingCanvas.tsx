@@ -780,6 +780,11 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     sticker: boolean,
   ) {
     if (pts.length < 2) return;
+    // Guide paths (sticker=false) fully hide when intensity is zero — used by
+    // Chapter 4 BLITZ flash-trace levels which need the canvas to be totally
+    // blank after the memorize phase ends. Without this short-circuit the
+    // saturated-core stroke draws at full hex alpha regardless of intensity.
+    if (!sticker && intensity <= 0.005) return;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 

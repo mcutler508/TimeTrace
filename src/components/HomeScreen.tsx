@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import {
   CHAPTERS,
   pointsToNextUnlock,
@@ -26,6 +26,8 @@ interface Props {
   bestScores: Record<string, AttemptResult>;
   streak: number;
   playerName: string;
+  /** Challenge to scroll into view on first mount (the level the player just exited). */
+  focusChallengeId?: string | null;
   onPickChallenge: (challengeId: string) => void;
   onSignOut?: () => void;
   onOpenLeaderboard?: () => void;
@@ -37,6 +39,7 @@ export default function HomeScreen({
   bestScores,
   streak,
   playerName,
+  focusChallengeId,
   onPickChallenge,
   onSignOut,
   onOpenLeaderboard,
@@ -48,6 +51,24 @@ export default function HomeScreen({
   const [hapticsOn, setHapticsOn] = useState(getHapticsEnabled());
   const [soundOn, setSoundOn] = useState(getSoundEnabled());
   const [editingName, setEditingName] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const didFocusRef = useRef(false);
+
+  useLayoutEffect(() => {
+    if (didFocusRef.current) return;
+    if (!focusChallengeId) return;
+    const root = scrollRef.current;
+    if (!root) return;
+    const target = root.querySelector<HTMLElement>(
+      `[data-level-id="${CSS.escape(focusChallengeId)}"]`,
+    );
+    if (!target) return;
+    const rootBox = root.getBoundingClientRect();
+    const targetBox = target.getBoundingClientRect();
+    const offset = targetBox.top - rootBox.top + root.scrollTop - rootBox.height / 2 + targetBox.height / 2;
+    root.scrollTo({ top: Math.max(0, offset), behavior: 'auto' });
+    didFocusRef.current = true;
+  }, [focusChallengeId]);
 
   function toggleHaptics() {
     const v = !hapticsOn;
@@ -81,7 +102,10 @@ export default function HomeScreen({
   }
 
   return (
-    <div className="flex flex-col flex-1 w-full max-w-md mx-auto px-5 pt-8 pb-6 gap-6 overflow-y-auto">
+    <div
+      ref={scrollRef}
+      className="flex flex-col flex-1 w-full max-w-md mx-auto px-5 pt-8 pb-6 gap-6 overflow-y-auto"
+    >
       <header className="flex items-end justify-between gap-3">
         <div>
           <div className="text-poster text-[11px] tracking-[0.3em] text-splat-yellow text-glow-gold">

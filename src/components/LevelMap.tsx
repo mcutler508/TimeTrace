@@ -22,8 +22,8 @@ interface Props {
   onPickChallenge: (challengeId: string) => void;
 }
 
-const ROW_PX = 178;
-const TOP_PAD_PX = 90;
+const ROW_PX = 142;
+const TOP_PAD_PX = 60;
 const SNAKE_AMPLITUDE = 24;
 
 const RAINBOW_STOPS = [
@@ -38,7 +38,6 @@ const RAINBOW_STOPS = [
 const RAINBOW_PALETTE = ['#ff3da4', '#ff7a3d', '#ffe83d', '#a4ff3d', '#3df0ff', '#a44dff'];
 const PUFFS_PER_SEGMENT = 6;
 const PARTICLES_PER_SEGMENT = 26;
-const SPARKS_PER_SEGMENT = 80;
 const GRADIENT_CYCLE_PX = 540;
 const RAINBOW_FLOW_DURATION = '6.3s';
 
@@ -116,7 +115,7 @@ export default function LevelMap({
     return d;
   }, [levels.length]);
 
-  const { puffs, particles, sparks } = useMemo(() => {
+  const { puffs, particles } = useMemo(() => {
     type Dot = {
       x: number;
       y: number;
@@ -127,12 +126,10 @@ export default function LevelMap({
     };
     const puffs: Dot[] = [];
     const particles: Dot[] = [];
-    const sparks: Dot[] = [];
-    if (levels.length < 2) return { puffs, particles, sparks };
+    if (levels.length < 2) return { puffs, particles };
 
     let uCounter = 0;
     let pCounter = 0;
-    let sCounter = 0;
     for (let i = 0; i < levels.length - 1; i++) {
       const p0x = nodeXPercent(i);
       const p0y = nodeY(i);
@@ -201,29 +198,8 @@ export default function LevelMap({
         pCounter += 1;
       }
 
-      // Fine glitter — dense sub-pixel sparks throughout the cloud
-      for (let k = 0; k < SPARKS_PER_SEGMENT; k++) {
-        const t = (k + 0.5) / SPARKS_PER_SEGMENT;
-        const { x, y } = samplePoint(t);
-        const seed = i * 41 + k * 5;
-        const jx = Math.sin(seed * 2.1) * 12 + Math.cos(seed * 0.7) * 3.5;
-        const jy = Math.cos(seed * 1.3) * 32 + Math.sin(seed * 0.5) * 7;
-        const tiny = 0.6 + (Math.sin(seed * 1.1) + 1) * 0.7;
-        const colorIndex =
-          (sCounter * 3 + Math.floor(t * RAINBOW_PALETTE.length)) %
-          RAINBOW_PALETTE.length;
-        sparks.push({
-          x: x + jx,
-          y: y + jy,
-          size: tiny,
-          color: RAINBOW_PALETTE[colorIndex],
-          delay: (sCounter * 0.071) % 1.8,
-          duration: 0.85 + ((seed % 11) * 0.07),
-        });
-        sCounter += 1;
-      }
     }
-    return { puffs, particles, sparks };
+    return { puffs, particles };
   }, [levels.length]);
 
   const textureUrl = chapter.id === 1 ? colorfulBricksUrl : woodPanelUrl;
@@ -463,25 +439,6 @@ export default function LevelMap({
           />
         ))}
 
-        {/* Glitter — fine, fast-twinkling sub-pixel sparks */}
-        {sparks.map((p, idx) => (
-          <span
-            key={`s${idx}`}
-            aria-hidden
-            className="trail-spark absolute rounded-full pointer-events-none"
-            style={{
-              left: `${p.x}%`,
-              top: `${(p.y / totalHeight) * 100}%`,
-              width: `${p.size}px`,
-              height: `${p.size}px`,
-              background: p.color,
-              boxShadow: `0 0 ${p.size * 4}px ${p.color}`,
-              animationDelay: `${p.delay}s`,
-              animationDuration: `${p.duration}s`,
-            }}
-          />
-        ))}
-
         {levels.map((c, i) => {
           const globalIdx = startGlobalIdx + i;
           const unlocked = isChallengeUnlocked(c, totalPoints);
@@ -506,6 +463,7 @@ export default function LevelMap({
           return (
             <div
               key={c.id}
+              data-level-id={c.id}
               className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"
               style={{ left: `${xPct}%`, top: `${yPct}%` }}
             >

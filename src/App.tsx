@@ -299,6 +299,7 @@ export default function App() {
         bestScores={state.bestScoresByChallenge}
         streak={state.currentStreak}
         playerName={state.playerName}
+        focusChallengeId={currentChallenge.id}
         onPickChallenge={handlePickChallenge}
         onSignOut={handleSignOut}
         onOpenLeaderboard={handleOpenLeaderboard}

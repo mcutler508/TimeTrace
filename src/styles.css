@@ -319,6 +319,15 @@
     pointer-events: none;
     animation: trophySpin 9s linear infinite;
   }
+
+  .node-pulse {
+    animation: nodePulse 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes nodePulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.95; transform: scale(1.04); }
 }
 
 @keyframes perfectFreeze {

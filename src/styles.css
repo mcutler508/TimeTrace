@@ -239,6 +239,15 @@
 
   /* Riot background layers */
 
+  .ambient-bg-fill {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100lvh;
+  }
+
   .riot-base {
     background:
       radial-gradient(ellipse 70% 50% at 20% 10%, rgba(255, 61, 164, 0.18) 0%, transparent 60%),
@@ -249,16 +258,75 @@
 
   .riot-stars {
     background-image:
+      radial-gradient(circle at 6% 8%, rgba(255, 245, 224, 0.95) 0, rgba(255, 245, 224, 0.95) 1.4px, transparent 2px),
       radial-gradient(circle at 12% 18%, rgba(255, 245, 224, 0.85) 0, rgba(255, 245, 224, 0.85) 1px, transparent 1.5px),
+      radial-gradient(circle at 22% 30%, rgba(220, 235, 255, 0.7) 0, rgba(220, 235, 255, 0.7) 1px, transparent 1.4px),
       radial-gradient(circle at 28% 64%, rgba(255, 245, 224, 0.7) 0, rgba(255, 245, 224, 0.7) 1px, transparent 1.5px),
-      radial-gradient(circle at 70% 22%, rgba(255, 245, 224, 0.95) 0, rgba(255, 245, 224, 0.95) 1.4px, transparent 2px),
-      radial-gradient(circle at 84% 78%, rgba(255, 245, 224, 0.75) 0, rgba(255, 245, 224, 0.75) 1px, transparent 1.5px),
-      radial-gradient(circle at 50% 38%, rgba(255, 245, 224, 0.6) 0, rgba(255, 245, 224, 0.6) 1px, transparent 1.5px),
-      radial-gradient(circle at 18% 88%, rgba(255, 245, 224, 0.85) 0, rgba(255, 245, 224, 0.85) 1.2px, transparent 2px),
-      radial-gradient(circle at 92% 12%, rgba(255, 245, 224, 0.85) 0, rgba(255, 245, 224, 0.85) 1.2px, transparent 2px),
+      radial-gradient(circle at 34% 12%, rgba(255, 245, 224, 0.6) 0, rgba(255, 245, 224, 0.6) 0.9px, transparent 1.3px),
       radial-gradient(circle at 38% 82%, rgba(255, 245, 224, 0.7) 0, rgba(255, 245, 224, 0.7) 1px, transparent 1.5px),
-      radial-gradient(circle at 62% 58%, rgba(255, 245, 224, 0.7) 0, rgba(255, 245, 224, 0.7) 1px, transparent 1.5px);
-    background-size: 320px 320px;
+      radial-gradient(circle at 44% 26%, rgba(255, 235, 200, 0.85) 0, rgba(255, 235, 200, 0.85) 1.3px, transparent 1.9px),
+      radial-gradient(circle at 50% 38%, rgba(255, 245, 224, 0.6) 0, rgba(255, 245, 224, 0.6) 1px, transparent 1.5px),
+      radial-gradient(circle at 56% 72%, rgba(220, 235, 255, 0.95) 0, rgba(220, 235, 255, 0.95) 1.2px, transparent 1.8px),
+      radial-gradient(circle at 62% 58%, rgba(255, 245, 224, 0.7) 0, rgba(255, 245, 224, 0.7) 1px, transparent 1.5px),
+      radial-gradient(circle at 68% 8%, rgba(255, 245, 224, 0.85) 0, rgba(255, 245, 224, 0.85) 1.1px, transparent 1.6px),
+      radial-gradient(circle at 70% 22%, rgba(255, 245, 224, 0.95) 0, rgba(255, 245, 224, 0.95) 1.4px, transparent 2px),
+      radial-gradient(circle at 76% 46%, rgba(255, 245, 224, 0.55) 0, rgba(255, 245, 224, 0.55) 0.8px, transparent 1.2px),
+      radial-gradient(circle at 78% 88%, rgba(255, 245, 224, 0.7) 0, rgba(255, 245, 224, 0.7) 1px, transparent 1.5px),
+      radial-gradient(circle at 84% 78%, rgba(255, 245, 224, 0.75) 0, rgba(255, 245, 224, 0.75) 1px, transparent 1.5px),
+      radial-gradient(circle at 88% 36%, rgba(220, 235, 255, 0.8) 0, rgba(220, 235, 255, 0.8) 1.1px, transparent 1.6px),
+      radial-gradient(circle at 92% 12%, rgba(255, 245, 224, 0.85) 0, rgba(255, 245, 224, 0.85) 1.2px, transparent 2px),
+      radial-gradient(circle at 18% 88%, rgba(255, 245, 224, 0.85) 0, rgba(255, 245, 224, 0.85) 1.2px, transparent 2px),
+      radial-gradient(circle at 8% 52%, rgba(255, 245, 224, 0.65) 0, rgba(255, 245, 224, 0.65) 1px, transparent 1.4px),
+      radial-gradient(circle at 96% 62%, rgba(255, 245, 224, 0.85) 0, rgba(255, 245, 224, 0.85) 1.1px, transparent 1.6px);
+    background-size: 380px 380px;
+  }
+
+  .riot-stars-mid {
+    background-image:
+      radial-gradient(circle at 9% 26%, rgba(255, 245, 224, 0.8) 0, rgba(255, 245, 224, 0.8) 0.9px, transparent 1.4px),
+      radial-gradient(circle at 16% 64%, rgba(220, 235, 255, 0.7) 0, rgba(220, 235, 255, 0.7) 0.8px, transparent 1.3px),
+      radial-gradient(circle at 22% 12%, rgba(255, 245, 224, 0.85) 0, rgba(255, 245, 224, 0.85) 1.1px, transparent 1.7px),
+      radial-gradient(circle at 30% 48%, rgba(255, 235, 200, 0.7) 0, rgba(255, 235, 200, 0.7) 0.9px, transparent 1.4px),
+      radial-gradient(circle at 36% 84%, rgba(255, 245, 224, 0.75) 0, rgba(255, 245, 224, 0.75) 0.9px, transparent 1.4px),
+      radial-gradient(circle at 42% 18%, rgba(220, 235, 255, 0.7) 0, rgba(220, 235, 255, 0.7) 0.8px, transparent 1.3px),
+      radial-gradient(circle at 48% 56%, rgba(255, 245, 224, 0.9) 0, rgba(255, 245, 224, 0.9) 1.2px, transparent 1.8px),
+      radial-gradient(circle at 54% 30%, rgba(255, 245, 224, 0.7) 0, rgba(255, 245, 224, 0.7) 0.9px, transparent 1.4px),
+      radial-gradient(circle at 60% 76%, rgba(220, 235, 255, 0.85) 0, rgba(220, 235, 255, 0.85) 1px, transparent 1.5px),
+      radial-gradient(circle at 66% 42%, rgba(255, 245, 224, 0.65) 0, rgba(255, 245, 224, 0.65) 0.8px, transparent 1.2px),
+      radial-gradient(circle at 72% 14%, rgba(255, 245, 224, 0.85) 0, rgba(255, 245, 224, 0.85) 1px, transparent 1.5px),
+      radial-gradient(circle at 78% 60%, rgba(255, 235, 200, 0.8) 0, rgba(255, 235, 200, 0.8) 1px, transparent 1.5px),
+      radial-gradient(circle at 84% 36%, rgba(220, 235, 255, 0.7) 0, rgba(220, 235, 255, 0.7) 0.9px, transparent 1.4px),
+      radial-gradient(circle at 90% 84%, rgba(255, 245, 224, 0.85) 0, rgba(255, 245, 224, 0.85) 1.1px, transparent 1.6px),
+      radial-gradient(circle at 96% 22%, rgba(255, 245, 224, 0.7) 0, rgba(255, 245, 224, 0.7) 0.9px, transparent 1.4px),
+      radial-gradient(circle at 4% 92%, rgba(220, 235, 255, 0.75) 0, rgba(220, 235, 255, 0.75) 1px, transparent 1.5px);
+    background-size: 290px 290px;
+  }
+
+  .riot-stars-mid-twinkle {
+    animation: starsTwinkleAlt 6.3s ease-in-out infinite;
+  }
+
+  .riot-stars-far {
+    background-image:
+      radial-gradient(circle at 4% 22%, rgba(255, 245, 224, 0.55) 0, rgba(255, 245, 224, 0.55) 0.6px, transparent 1px),
+      radial-gradient(circle at 14% 76%, rgba(220, 235, 255, 0.5) 0, rgba(220, 235, 255, 0.5) 0.6px, transparent 1px),
+      radial-gradient(circle at 24% 8%, rgba(255, 245, 224, 0.6) 0, rgba(255, 245, 224, 0.6) 0.7px, transparent 1.1px),
+      radial-gradient(circle at 32% 42%, rgba(255, 245, 224, 0.45) 0, rgba(255, 245, 224, 0.45) 0.5px, transparent 0.9px),
+      radial-gradient(circle at 40% 92%, rgba(220, 235, 255, 0.55) 0, rgba(220, 235, 255, 0.55) 0.6px, transparent 1px),
+      radial-gradient(circle at 48% 16%, rgba(255, 245, 224, 0.5) 0, rgba(255, 245, 224, 0.5) 0.6px, transparent 1px),
+      radial-gradient(circle at 54% 60%, rgba(255, 245, 224, 0.6) 0, rgba(255, 245, 224, 0.6) 0.7px, transparent 1.1px),
+      radial-gradient(circle at 60% 30%, rgba(255, 245, 224, 0.4) 0, rgba(255, 245, 224, 0.4) 0.5px, transparent 0.9px),
+      radial-gradient(circle at 66% 80%, rgba(220, 235, 255, 0.55) 0, rgba(220, 235, 255, 0.55) 0.6px, transparent 1px),
+      radial-gradient(circle at 72% 50%, rgba(255, 245, 224, 0.5) 0, rgba(255, 245, 224, 0.5) 0.6px, transparent 1px),
+      radial-gradient(circle at 80% 18%, rgba(255, 245, 224, 0.45) 0, rgba(255, 245, 224, 0.45) 0.6px, transparent 1px),
+      radial-gradient(circle at 86% 70%, rgba(255, 245, 224, 0.5) 0, rgba(255, 245, 224, 0.5) 0.6px, transparent 1px),
+      radial-gradient(circle at 92% 40%, rgba(220, 235, 255, 0.55) 0, rgba(220, 235, 255, 0.55) 0.6px, transparent 1px),
+      radial-gradient(circle at 98% 88%, rgba(255, 245, 224, 0.45) 0, rgba(255, 245, 224, 0.45) 0.5px, transparent 0.9px);
+    background-size: 220px 220px;
+  }
+
+  .riot-stars-twinkle {
+    animation: starsTwinkle 4.95s ease-in-out infinite;
   }
 
   .riot-grain {
@@ -319,6 +387,106 @@
     pointer-events: none;
     animation: trophySpin 9s linear infinite;
   }
+
+  .node-pulse {
+    animation: nodePulse 2.16s ease-in-out infinite;
+  }
+
+  .trail-shimmer {
+    animation: trailShimmer 0.99s linear infinite;
+  }
+
+  .trail-puff {
+    animation: puffDrift 3.6s ease-in-out infinite;
+    will-change: opacity, transform;
+    transform: translate(-50%, -50%);
+  }
+
+  .trail-particle {
+    animation: particleTwinkle 2.34s ease-in-out infinite;
+    will-change: opacity, transform;
+  }
+
+  .trail-spark {
+    animation: sparkTwinkle 0.99s ease-in-out infinite;
+    will-change: opacity, transform;
+  }
+
+  .trail-rib-flow {
+    animation: ribFlow 5.4s linear infinite;
+  }
+
+  .trail-stitch {
+    animation: stitchDrift 3.6s linear infinite;
+  }
+}
+
+@keyframes nodePulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.95; transform: scale(1.04); }
+}
+
+@keyframes trailShimmer {
+  to { stroke-dashoffset: -28; }
+}
+
+@keyframes galaxyTwinkle {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+@keyframes galaxySpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes galaxySpinRev {
+  to { transform: rotate(-360deg); }
+}
+
+.galaxy-spin {
+  animation: galaxySpin 180s linear infinite;
+}
+.galaxy-spin-rev {
+  animation: galaxySpinRev 240s linear infinite;
+}
+
+@keyframes puffDrift {
+  0%, 100% { opacity: 0.35; transform: translate(-50%, -50%) scale(0.9); }
+  50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.12); }
+}
+
+@keyframes particleTwinkle {
+  0%, 100% { opacity: 0.25; transform: translate(-50%, -50%) scale(0.85); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+}
+
+@keyframes sparkTwinkle {
+  0%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  35% { opacity: 1; transform: translate(-50%, -50%) scale(1.4); }
+  70% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.9); }
+}
+
+@keyframes starsTwinkle {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+@keyframes starsTwinkleAlt {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.95; }
+}
+
+@keyframes brightStarPulse {
+  0%, 100% { opacity: 0.65; transform: translate(-50%, -50%) scale(0.96); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.22); }
+}
+
+@keyframes ribFlow {
+  to { stroke-dashoffset: 7.5; }
+}
+
+@keyframes stitchDrift {
+  to { stroke-dashoffset: -7; }
 }
 
 @keyframes perfectFreeze {

@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import {
-  CHALLENGES,
   CHAPTERS,
-  accentFor,
-  chapterUnlocked,
   pointsToNextUnlock,
 } from '../game/challenges';
 import type { AttemptResult } from '../game/types';
-import ShapePreview from './ShapePreview';
+import LevelMap from './LevelMap';
 import HowItWorks from './HowItWorks';
 import NameEntryScreen from './NameEntryScreen';
 import {
@@ -34,8 +31,6 @@ interface Props {
   onOpenLeaderboard?: () => void;
   onEditName?: (name: string) => void;
 }
-
-const TILE_TILTS = ['-rotate-1', 'rotate-1', '-rotate-[2deg]', 'rotate-[2deg]', '-rotate-1', 'rotate-1'];
 
 export default function HomeScreen({
   totalPoints,
@@ -180,155 +175,17 @@ export default function HomeScreen({
         </div>
       </div>
 
+      {CHAPTERS.map((chap) => (
+        <LevelMap
+          key={chap.id}
+          chapter={chap}
+          totalPoints={totalPoints}
+          bestScores={bestScores}
+          onPickChallenge={onPickChallenge}
+        />
+      ))}
+
       <HowItWorks />
-
-      {CHAPTERS.map((chap, chapIdx) => {
-        const chapLevels = CHALLENGES.filter((c) => c.chapter === chap.id);
-        const chapStartGlobalIdx = CHALLENGES.findIndex((c) => c.chapter === chap.id);
-        const chapUnlocked = chapterUnlocked(chap, totalPoints);
-        const chapTilt = chapIdx % 2 === 0 ? '-rotate-[0.6deg]' : 'rotate-[0.5deg]';
-        const chapAccentBg = chap.id === 1 ? '#3df0ff' : '#ff3da4';
-        return (
-          <div key={chap.id}>
-            <div
-              className={`card-sticker px-4 py-3 mb-3 ${chapTilt} flex items-center justify-between gap-3`}
-              style={{ background: chap.id === 1 ? 'rgba(20,18,38,0.95)' : 'rgba(28,12,32,0.95)' }}
-            >
-              <div>
-                <div
-                  className="text-poster text-[10px] tracking-[0.32em]"
-                  style={{ color: chapAccentBg }}
-                >
-                  {chap.title}
-                </div>
-                <div className="text-poster text-base text-splat-paper text-sticker leading-tight mt-0.5">
-                  {chap.subtitle}
-                </div>
-                <div className="text-[11px] text-splat-paper/55 mt-1">{chap.blurb}</div>
-              </div>
-              {!chapUnlocked && (
-                <div
-                  className="px-2.5 py-1 rounded-full text-[10px] font-poster tracking-[0.18em] border-2 border-black"
-                  style={{ background: '#ffe83d', color: '#0a0708' }}
-                >
-                  {chap.unlockGate} PTS
-                </div>
-              )}
-            </div>
-
-            {!chapUnlocked ? (
-              <div
-                className="card-sticker px-4 py-5 mb-6 text-center"
-                style={{ background: 'rgba(20,18,38,0.85)' }}
-              >
-                <div className="text-poster text-sm text-splat-yellow tracking-[0.22em]">
-                  CHAPTER LOCKED
-                </div>
-                <p className="text-[12px] text-splat-paper/70 mt-2 leading-snug">
-                  Earn {chap.unlockGate - totalPoints} more pts in earlier chapters to access {chap.subtitle}.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                {chapLevels.map((c, localIdx) => {
-                  const globalIdx = chapStartGlobalIdx + localIdx;
-                  const unlocked = totalPoints >= c.unlockThreshold;
-                  const best = bestScores[c.id]?.finalScore;
-                  const accent = accentFor(c.shape);
-                  const tilt = TILE_TILTS[globalIdx % TILE_TILTS.length];
-                  const hasPortals = !!(c as { portals?: unknown[] }).portals?.length;
-                  return (
-                    <button
-                      key={c.id}
-                      disabled={!unlocked}
-                      onClick={() => {
-                        if (!unlocked) return;
-                        haptics.tap();
-                        sfx.tap();
-                        onPickChallenge(c.id);
-                      }}
-                      className={`relative card-sticker p-3 text-left transition-transform ${tilt} active:translate-x-[3px] active:translate-y-[3px] active:shadow-none ${
-                        unlocked ? '' : 'opacity-90'
-                      }`}
-                      style={
-                        unlocked
-                          ? ({
-                              background: `linear-gradient(180deg, ${accent.soft.replace('0.55', '0.18')} 0%, rgba(18, 14, 36, 0.94) 60%)`,
-                            } as React.CSSProperties)
-                          : undefined
-                      }
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="text-poster text-[10px] tracking-[0.28em] text-splat-yellow">
-                            LV {globalIdx + 1}
-                          </div>
-                          <div
-                            className={`text-poster text-[13px] leading-tight mt-0.5 ${
-                              unlocked ? 'text-splat-paper' : 'text-splat-paper/45'
-                            }`}
-                          >
-                            {c.title}
-                          </div>
-                        </div>
-                        {!unlocked ? (
-                          <div className="text-splat-yellow" aria-label="Locked">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="#0a0708" strokeWidth="2.4" strokeLinejoin="round">
-                              <rect x="4" y="11" width="16" height="10" rx="2" />
-                              <path d="M8 11V7a4 4 0 0 1 8 0v4" fill="none" stroke="#0a0708" strokeLinecap="round" />
-                            </svg>
-                          </div>
-                        ) : hasPortals ? (
-                          <div
-                            className="text-[8px] font-poster tracking-[0.16em] px-1.5 py-0.5 rounded border-2 border-black"
-                            style={{ background: '#ff3da4', color: '#0a0708' }}
-                          >
-                            PORTAL
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <div className="flex items-center justify-center my-2 relative">
-                        {unlocked && (
-                          <div
-                            className="absolute inset-0 rounded-full blur-2xl opacity-40"
-                            style={{ background: accent.soft }}
-                          />
-                        )}
-                        <ShapePreview
-                          shape={c.shape}
-                          size={64}
-                          stroke={unlocked ? accent.stroke : '#a44dff'}
-                          opacity={unlocked ? 1 : 0.3}
-                          glow={unlocked}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span
-                          className="font-poster tabular-nums"
-                          style={{ color: unlocked ? accent.stroke : 'rgba(255,245,224,0.4)' }}
-                        >
-                          {c.targetTime.toFixed(2)}s
-                        </span>
-                        {unlocked ? (
-                          <span className="font-poster text-splat-paper/85 tabular-nums">
-                            Best {best ?? '—'}
-                          </span>
-                        ) : (
-                          <span className="font-poster text-splat-yellow tabular-nums">
-                            {c.unlockThreshold}p
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
 
       <p className="text-center text-[11px] text-splat-paper/55 mt-1">
         Earn points by setting best scores. Each level's best counts once.

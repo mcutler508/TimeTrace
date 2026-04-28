@@ -239,6 +239,15 @@
 
   /* Riot background layers */
 
+  .ambient-bg-fill {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100lvh;
+  }
+
   .riot-base {
     background:
       radial-gradient(ellipse 70% 50% at 20% 10%, rgba(255, 61, 164, 0.18) 0%, transparent 60%),

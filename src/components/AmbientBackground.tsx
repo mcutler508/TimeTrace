@@ -143,7 +143,7 @@ export default function AmbientBackground() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-0 overflow-hidden riot-base"
+      className="ambient-bg-fill pointer-events-none z-0 overflow-hidden riot-base"
     >
       <Splat className="splat-pink" size={420} top="-8%" left="-10%" />
       <Splat className="splat-cyan" size={520} bottom="-15%" right="-12%" />

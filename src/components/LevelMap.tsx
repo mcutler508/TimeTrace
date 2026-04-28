@@ -22,7 +22,7 @@ interface Props {
   onPickChallenge: (challengeId: string) => void;
 }
 
-const ROW_PX = 150;
+const ROW_PX = 178;
 const TOP_PAD_PX = 90;
 const SNAKE_AMPLITUDE = 24;
 
@@ -482,6 +482,7 @@ export default function LevelMap({
           const xPct = nodeXPercent(i);
           const yPct = (nodeY(i) / totalHeight) * 100;
           const hasPortals = !!c.segments?.length;
+          const pointsNeeded = Math.max(0, c.unlockThreshold - totalPoints);
 
           const handleTap = () => {
             if (!unlocked) return;
@@ -493,7 +494,7 @@ export default function LevelMap({
           return (
             <div
               key={c.id}
-              className="absolute -translate-x-1/2 -translate-y-1/2"
+              className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"
               style={{ left: `${xPct}%`, top: `${yPct}%` }}
             >
               <NodeStars count={stars} />
@@ -513,6 +514,8 @@ export default function LevelMap({
                   unlocked={unlocked}
                   shapeAccent={shapeAccent}
                   hasPortals={hasPortals}
+                  bestScore={attempt ? score : null}
+                  pointsNeeded={pointsNeeded}
                   onTap={handleTap}
                 />
               )}
@@ -564,6 +567,8 @@ interface SmallNodeProps {
   unlocked: boolean;
   shapeAccent: { stroke: string; soft: string };
   hasPortals: boolean;
+  bestScore: number | null;
+  pointsNeeded: number;
   onTap: () => void;
 }
 
@@ -573,69 +578,133 @@ function SmallNode({
   unlocked,
   shapeAccent,
   hasPortals,
+  bestScore,
+  pointsNeeded,
   onTap,
 }: SmallNodeProps) {
   const ringColor = unlocked ? shapeAccent.stroke : '#3a2a55';
   return (
-    <button
-      type="button"
-      disabled={!unlocked}
-      onClick={onTap}
-      className="relative flex items-center justify-center w-[75px] h-[75px] rounded-full transition-transform active:translate-x-[1.5px] active:translate-y-[1.5px]"
-      style={{
-        background: 'rgba(10, 8, 22, 0.96)',
-        border: `2.5px solid ${ringColor}`,
-        boxShadow: unlocked
-          ? `0 0 14px ${shapeAccent.soft}, 3px 3px 0 0 #0a0708`
-          : '3px 3px 0 0 #0a0708',
-        opacity: unlocked ? 1 : 0.62,
-      }}
-      aria-label={`Level ${globalIdx + 1}: ${challenge.title}${
-        unlocked ? '' : ' — locked'
-      }`}
-    >
-      <ShapePreview
-        shape={challenge.shape}
-        size={44}
-        stroke={unlocked ? shapeAccent.stroke : '#a44dff'}
-        opacity={unlocked ? 1 : 0.35}
-        glow={unlocked}
-      />
-
-      <div
-        className="absolute -top-2 left-1/2 -translate-x-1/2 text-poster text-[8.5px] tracking-[0.2em] px-1.5 py-0.5 rounded-full border-2 border-black whitespace-nowrap"
+    <div className="flex flex-col items-center">
+      <button
+        type="button"
+        disabled={!unlocked}
+        onClick={onTap}
+        className="relative flex items-center justify-center w-[75px] h-[75px] rounded-full transition-transform active:translate-x-[1.5px] active:translate-y-[1.5px]"
         style={{
-          background: '#0a0708',
-          color: unlocked ? shapeAccent.stroke : 'rgba(255,245,224,0.45)',
+          background: 'rgba(10, 8, 22, 0.96)',
+          border: `2.5px solid ${ringColor}`,
+          boxShadow: unlocked
+            ? `0 0 14px ${shapeAccent.soft}, 3px 3px 0 0 #0a0708`
+            : '3px 3px 0 0 #0a0708',
+          opacity: unlocked ? 1 : 0.62,
+        }}
+        aria-label={`Level ${globalIdx + 1}: ${challenge.title}${
+          unlocked ? '' : ` — locked, ${pointsNeeded} more points needed`
+        }`}
+      >
+        <ShapePreview
+          shape={challenge.shape}
+          size={44}
+          stroke={unlocked ? shapeAccent.stroke : '#a44dff'}
+          opacity={unlocked ? 1 : 0.35}
+          glow={unlocked}
+        />
+
+        <div
+          className="absolute -top-2 left-1/2 -translate-x-1/2 text-poster text-[8.5px] tracking-[0.2em] px-1.5 py-0.5 rounded-full border-2 border-black whitespace-nowrap"
+          style={{
+            background: '#0a0708',
+            color: unlocked ? shapeAccent.stroke : 'rgba(255,245,224,0.45)',
+          }}
+        >
+          LV {globalIdx + 1}
+        </div>
+
+        {!unlocked && (
+          <div className="absolute -bottom-2 -right-2 bg-splat-yellow border-2 border-black rounded-full p-0.5 leading-none">
+            <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden>
+              <rect x="4" y="11" width="16" height="10" rx="2" fill="#0a0708" />
+              <path
+                d="M8 11V7a4 4 0 0 1 8 0v4"
+                fill="none"
+                stroke="#0a0708"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+        )}
+
+        {hasPortals && unlocked && (
+          <div
+            className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 text-[8px] font-poster tracking-[0.16em] px-1.5 py-0.5 rounded border-2 border-black whitespace-nowrap"
+            style={{ background: '#ff3da4', color: '#0a0708' }}
+          >
+            COMBO
+          </div>
+        )}
+      </button>
+
+      <NodeCaption
+        title={challenge.title}
+        unlocked={unlocked}
+        targetTime={challenge.targetTime}
+        bestScore={bestScore}
+        pointsNeeded={pointsNeeded}
+        accent={shapeAccent.stroke}
+      />
+    </div>
+  );
+}
+
+interface NodeCaptionProps {
+  title: string;
+  unlocked: boolean;
+  targetTime: number;
+  bestScore: number | null;
+  pointsNeeded: number;
+  accent: string;
+}
+
+function NodeCaption({
+  title,
+  unlocked,
+  targetTime,
+  bestScore,
+  pointsNeeded,
+  accent,
+}: NodeCaptionProps) {
+  return (
+    <div
+      className="mt-2.5 flex flex-col items-center text-center max-w-[160px]"
+      style={{ pointerEvents: 'none' }}
+    >
+      <div
+        className="text-poster text-[10px] tracking-[0.18em] uppercase truncate w-full"
+        style={{
+          color: unlocked ? '#fff5e0' : 'rgba(255,245,224,0.5)',
+          textShadow: '0 1px 0 #0a0708, 1px 1px 0 #0a0708',
         }}
       >
-        LV {globalIdx + 1}
+        {title}
       </div>
-
-      {!unlocked && (
-        <div className="absolute -bottom-2 -right-2 bg-splat-yellow border-2 border-black rounded-full p-0.5 leading-none">
-          <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden>
-            <rect x="4" y="11" width="16" height="10" rx="2" fill="#0a0708" />
-            <path
-              d="M8 11V7a4 4 0 0 1 8 0v4"
-              fill="none"
-              stroke="#0a0708"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-            />
-          </svg>
+      {unlocked ? (
+        <div className="font-poster text-[9px] tracking-[0.12em] tabular-nums mt-0.5">
+          <span style={{ color: accent }}>{targetTime.toFixed(1)}s</span>
+          <span className="text-splat-paper/55">{' · '}</span>
+          <span className="text-splat-paper/85">
+            BEST {bestScore != null ? bestScore : '—'}
+          </span>
         </div>
-      )}
-
-      {hasPortals && unlocked && (
+      ) : (
         <div
-          className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 text-[8px] font-poster tracking-[0.16em] px-1.5 py-0.5 rounded border-2 border-black whitespace-nowrap"
-          style={{ background: '#ff3da4', color: '#0a0708' }}
+          className="font-poster text-[9px] tracking-[0.12em] tabular-nums mt-0.5 px-2 py-0.5 rounded border-2 border-black whitespace-nowrap"
+          style={{ background: '#ffe83d', color: '#0a0708' }}
         >
-          COMBO
+          +{pointsNeeded} PTS TO UNLOCK
         </div>
       )}
-    </button>
+    </div>
   );
 }
 

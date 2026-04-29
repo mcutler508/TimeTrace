@@ -377,9 +377,9 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'First Trio',
     chapter: 3,
     segments: [
-      { shape: 'circle', center: { x: 0.18, y: 0.5 }, scale: 0.32 },
-      { shape: 'square', center: { x: 0.5, y: 0.5 }, scale: 0.32 },
-      { shape: 'triangle', center: { x: 0.82, y: 0.5 }, scale: 0.32 },
+      { shape: 'circle', center: { x: 0.22, y: 0.27 }, scale: 0.42 },
+      { shape: 'square', center: { x: 0.5, y: 0.73 }, scale: 0.42 },
+      { shape: 'triangle', center: { x: 0.78, y: 0.27 }, scale: 0.42 },
     ],
   },
   {
@@ -422,9 +422,9 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'Knot Work',
     chapter: 3,
     segments: [
-      { shape: 'crescent', center: { x: 0.18, y: 0.5 }, scale: 0.34 },
-      { shape: 'doubleLoop', center: { x: 0.5, y: 0.5 }, scale: 0.34 },
-      { shape: 'sineWave', center: { x: 0.82, y: 0.5 }, scale: 0.34 },
+      { shape: 'crescent', center: { x: 0.22, y: 0.27 }, scale: 0.42 },
+      { shape: 'doubleLoop', center: { x: 0.5, y: 0.73 }, scale: 0.42 },
+      { shape: 'sineWave', center: { x: 0.78, y: 0.27 }, scale: 0.42 },
     ],
   },
   {

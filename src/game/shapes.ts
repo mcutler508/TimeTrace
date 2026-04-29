@@ -443,6 +443,66 @@ function autoRotation(
 const PORTAL_SEAM_TRIM = 0.24;
 
 /**
+ * Shapes whose generated path *starts and ends at the same canvas point* —
+ * these are the only ones safe to apply the seam trim to. Other shapes flagged
+ * "closed" by gameplay (doubleLoop, squareInCircle, crescent, etc.) actually
+ * have paths that start in one place and end somewhere else; trimming them
+ * pulls portal slashes to nearby-but-still-overlapping positions or off the
+ * curve entirely. When in doubt, leave a shape OFF this list — the cost of
+ * not trimming a truly-closed shape is just a stacked OUT/IN, which we'd
+ * notice immediately. The cost of trimming a shape that isn't truly closed is
+ * portal slashes drifting to wrong locations.
+ */
+const TRULY_CLOSED_SHAPES = new Set<ShapeType>([
+  'circle',
+  'square',
+  'triangle',
+  'star',
+  'hexagon',
+  'heart',
+  'infinity',
+  'trefoil',
+]);
+
+/**
+ * Minimum allowed distance (unit-canvas, 0..1) between an interior segment's
+ * OUT (path[0]) and IN (path[-1]) slashes. Slashes have ~26px shadowBlur on a
+ * 360px playable canvas (~7% of canvas), plus visual length 7-13% of canvas
+ * each side, so endpoints closer than ~0.18 will visually overlap. Tuned from
+ * portal level QA — bump higher if slashes still feel cramped on small shapes.
+ */
+const PORTAL_MIN_SEPARATION = 0.2;
+
+/**
+ * Walk both ends of a path inward greedily until the first and last points are
+ * at least `minSep` apart in unit-canvas space. At each step advances whichever
+ * end produces the larger separation gain. Bails out if the path would shrink
+ * below 8 points (the path is already as separated as it can get without
+ * destroying the shape).
+ */
+function enforcePortalSeparation(path: Point[], minSep: number): Point[] {
+  if (path.length < 10) return path;
+  const dist = (i: number, j: number) =>
+    Math.hypot(path[i].x - path[j].x, path[i].y - path[j].y);
+  let lo = 0;
+  let hi = path.length - 1;
+  while (hi - lo > 8 && dist(lo, hi) < minSep) {
+    const gainAdvLo = dist(lo + 1, hi) - dist(lo, hi);
+    const gainAdvHi = dist(lo, hi - 1) - dist(lo, hi);
+    if (gainAdvLo <= 0 && gainAdvHi <= 0) {
+      // Neither move increases separation — advance both inward and try again.
+      lo++;
+      hi--;
+    } else if (gainAdvLo >= gainAdvHi) {
+      lo++;
+    } else {
+      hi--;
+    }
+  }
+  return path.slice(lo, hi + 1);
+}
+
+/**
  * Generate a continuous unit-space target path from an ordered list of shape
  * segments. Between segments the last point of segment N is flagged
  * `teleport: true` so the rendered line lifts at the portal jump and the
@@ -463,24 +523,20 @@ export function generateMultiShapePath(segments: ShapeSegment[]): Point[] {
     let transformed = transformSegmentPath(segments[s], rotation);
     const isInterior = s > 0 && s < segments.length - 1;
     if (isInterior && transformed.length > 8) {
-      // Only trim when the shape is *geometrically* closed — i.e. its first
-      // and last sample are essentially the same point. Some shapes flagged
-      // closed by the gameplay logic (doubleLoop, squareInCircle, etc.) have
-      // paths that start in one region and end in another, so trimming them
-      // would lift portal slashes off the curve into empty space.
-      const start = transformed[0];
-      const end = transformed[transformed.length - 1];
-      const closureGap = Math.hypot(start.x - end.x, start.y - end.y);
-      const trulyClosed = closureGap < 0.04;
-      if (trulyClosed) {
-        // Symmetric trim: drop equal slices from start and end so the seam
-        // straddles the natural closure point. Keeps OUT and IN at smooth
-        // positions on the curve (e.g. doesn't clip mid-spike on a star).
+      if (TRULY_CLOSED_SHAPES.has(segments[s].shape)) {
+        // Symmetric trim for shapes whose start and end land on the same
+        // point — gives a clean, visible gap straddling the closure.
         const totalCut = Math.floor(transformed.length * PORTAL_SEAM_TRIM);
         const cutStart = Math.floor(totalCut / 2);
         const cutEnd = totalCut - cutStart;
         transformed = transformed.slice(cutStart, transformed.length - cutEnd);
       }
+      // Hard guarantee: OUT (path[0]) and IN (path[-1]) MUST be at least
+      // PORTAL_MIN_SEPARATION apart in unit-canvas space, no matter the shape.
+      // For shapes already separated this is a no-op; for shapes whose
+      // endpoints land near each other (doubleLoop, mapleLeaf, pretzel etc.)
+      // it walks both ends inward greedily until the distance threshold is met.
+      transformed = enforcePortalSeparation(transformed, PORTAL_MIN_SEPARATION);
     }
     if (s > 0 && result.length > 0) {
       const last = result[result.length - 1];

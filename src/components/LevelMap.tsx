@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import {
   CHALLENGES,
   SHAPE_ACCENT,
@@ -36,8 +36,8 @@ const RAINBOW_STOPS = [
   { offset: '100%', color: '#ff3da4' },
 ];
 const RAINBOW_PALETTE = ['#ff3da4', '#ff7a3d', '#ffe83d', '#a4ff3d', '#3df0ff', '#a44dff'];
-const PUFFS_PER_SEGMENT = 6;
-const PARTICLES_PER_SEGMENT = 26;
+const PUFFS_PER_SEGMENT = 3;
+const PARTICLES_PER_SEGMENT = 13;
 const GRADIENT_CYCLE_PX = 540;
 const RAINBOW_FLOW_DURATION = '6.3s';
 
@@ -84,6 +84,15 @@ export default function LevelMap({
 
   const totalHeight = TOP_PAD_PX * 2 + Math.max(0, levels.length - 1) * ROW_PX;
 
+  // Stable signature of just the scores in THIS chapter — using `bestScores`
+  // directly would invalidate the memo on every score update anywhere in the
+  // app, which restarts every particle animation and causes a "reset flash"
+  // when returning to the map after completing a level.
+  const scoreSignature = useMemo(
+    () => levels.map((c) => bestScores[c.id]?.finalScore ?? 0).join(','),
+    [levels, bestScores],
+  );
+
   const currentIdx = useMemo(() => {
     let lastUnlocked = -1;
     for (let i = 0; i < levels.length; i++) {
@@ -94,7 +103,8 @@ export default function LevelMap({
       if (starsForScore(score) < 3) return i;
     }
     return lastUnlocked;
-  }, [levels, totalPoints, bestScores]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [levels, totalPoints, scoreSignature]);
 
   const trailD = useMemo(() => {
     if (levels.length === 0) return '';
@@ -284,7 +294,10 @@ export default function LevelMap({
     <div className="mb-7">
       {gateBanner}
 
-      <div className="relative w-full" style={{ height: totalHeight }}>
+      <div
+        className="relative w-full"
+        style={{ height: totalHeight, contain: 'layout paint style' }}
+      >
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none"
           viewBox={`0 0 100 ${totalHeight}`}
@@ -411,9 +424,9 @@ export default function LevelMap({
               width: `${p.size}px`,
               height: `${p.size}px`,
               background: p.color,
-              filter: `blur(${p.size * 0.55}px)`,
+              filter: `blur(${Math.round(p.size * 0.55 * 2) / 2}px)`,
               opacity: 0.55,
-              boxShadow: `0 0 ${p.size * 2.4}px ${p.color}`,
+              boxShadow: `0 0 ${Math.round(p.size * 2.4)}px ${p.color}`,
               animationDelay: `${p.delay}s`,
               animationDuration: `${p.duration}s`,
             }}
@@ -432,7 +445,7 @@ export default function LevelMap({
               width: `${p.size}px`,
               height: `${p.size}px`,
               background: p.color,
-              boxShadow: `0 0 ${p.size * 3}px ${p.color}, 0 0 ${p.size * 1.4}px ${p.color}`,
+              boxShadow: `0 0 ${Math.round(p.size * 3)}px ${p.color}, 0 0 ${Math.round(p.size * 1.4)}px ${p.color}`,
               animationDelay: `${p.delay}s`,
               animationDuration: `${p.duration}s`,
             }}
@@ -545,7 +558,7 @@ interface SmallNodeProps {
   onTap: () => void;
 }
 
-function SmallNode({
+const SmallNode = memo(function SmallNode({
   challenge,
   globalIdx,
   unlocked,
@@ -638,7 +651,7 @@ function SmallNode({
       />
     </div>
   );
-}
+});
 
 interface NodeCaptionProps {
   title: string;
@@ -659,11 +672,11 @@ function NodeCaption({
 }: NodeCaptionProps) {
   return (
     <div
-      className="mt-2.5 flex flex-col items-center text-center max-w-[160px]"
+      className="mt-2.5 flex flex-col items-center text-center max-w-[140px]"
       style={{ pointerEvents: 'none' }}
     >
       <div
-        className="text-poster text-[10px] tracking-[0.18em] uppercase truncate w-full"
+        className="text-poster text-[10px] tracking-[0.18em] uppercase truncate w-full leading-tight"
         style={{
           color: unlocked ? '#fff5e0' : 'rgba(255,245,224,0.5)',
           textShadow: '0 1px 0 #0a0708, 1px 1px 0 #0a0708',
@@ -672,16 +685,15 @@ function NodeCaption({
         {title}
       </div>
       {unlocked ? (
-        <div className="font-poster text-[9px] tracking-[0.12em] tabular-nums mt-0.5">
+        <div className="font-poster text-[9px] tracking-[0.1em] tabular-nums mt-0.5 flex flex-wrap justify-center gap-x-1 leading-tight">
           <span style={{ color: accent }}>{targetTime.toFixed(1)}s</span>
-          <span className="text-splat-paper/55">{' · '}</span>
           <span className="text-splat-paper/85">
             BEST {bestScore != null ? bestScore : '—'}
           </span>
         </div>
       ) : (
         <div
-          className="font-poster text-[9px] tracking-[0.12em] tabular-nums mt-0.5 px-2 py-0.5 rounded border-2 border-black whitespace-nowrap"
+          className="font-poster text-[9px] tracking-[0.08em] tabular-nums mt-0.5 px-1.5 py-0.5 rounded border-2 border-black whitespace-nowrap"
           style={{ background: '#ffe83d', color: '#0a0708' }}
         >
           +{pointsNeeded} PTS TO UNLOCK
@@ -701,7 +713,7 @@ interface FeatureCardProps {
   onTap: () => void;
 }
 
-function FeatureCard({
+const FeatureCard = memo(function FeatureCard({
   challenge,
   globalIdx,
   bestScore,
@@ -783,5 +795,5 @@ function FeatureCard({
       </div>
     </button>
   );
-}
+});
 

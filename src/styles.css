@@ -398,18 +398,15 @@
 
   .trail-puff {
     animation: puffDrift 3.6s ease-in-out infinite;
-    will-change: opacity, transform;
     transform: translate(-50%, -50%);
   }
 
   .trail-particle {
     animation: particleTwinkle 2.34s ease-in-out infinite;
-    will-change: opacity, transform;
   }
 
   .trail-spark {
     animation: sparkTwinkle 0.99s ease-in-out infinite;
-    will-change: opacity, transform;
   }
 
   .trail-rib-flow {

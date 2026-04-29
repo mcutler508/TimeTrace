@@ -232,6 +232,24 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetUnitPath, pacer, resultMode]);
 
+  // Pacer idle animation — runs while a pacer is configured but the player
+  // hasn't started drawing yet (and we're not in result mode). Drives the
+  // breathing pulse on the start-position comet so players can see where
+  // they're supposed to begin.
+  useEffect(() => {
+    if (!pacer || resultMode) return;
+    let raf = 0;
+    const tick = () => {
+      // Bail if the active pacer RAF has taken over — it'll drive its own redraws.
+      if (pacerStateRef.current.active) return;
+      redraw();
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pacer, resultMode, targetUnitPath]);
+
   useEffect(() => {
     redraw();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -916,17 +934,43 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
   }
 
   function drawPacerComet(ctx: CanvasRenderingContext2D) {
-    const ps = pacerStateRef.current;
-    if (!ps.active && !ps.finished) return;
     if (!pacer) return;
+    const ps = pacerStateRef.current;
+    // Three render states:
+    //   - idle: pacer hasn't started yet (player hasn't touched). Render at
+    //     path[0] with a breathing pulse so the player sees where to begin.
+    //   - active: pacer is moving along the path. Standard render, hue
+    //     depends on in-sync state.
+    //   - finished: pacer reached the end, freeze the visual at the last
+    //     position briefly until result phase takes over.
+    const isIdle = !ps.active && !ps.finished;
+    let x: number;
+    let y: number;
+    if (isIdle) {
+      const tCanvas = targetCanvasPath();
+      if (tCanvas.length === 0) return;
+      const start = sampleAt(tCanvas, 0);
+      x = start.point.x;
+      y = start.point.y;
+    } else {
+      x = ps.cometPos.x;
+      y = ps.cometPos.y;
+    }
     const inSync = ps.lastInSync && drawingRef.current;
-    const haloColor = inSync ? '#a4ff3d' : '#ff3da4';
-    const cometColor = inSync ? '#a4ff3d' : '#3df0ff';
-    const x = ps.cometPos.x;
-    const y = ps.cometPos.y;
+    // Idle uses the same cyan palette as in-sync but breathes to read as
+    // "ready, waiting for you." Active in-sync = lime green; out-of-sync = pink.
+    const haloColor = isIdle ? '#3df0ff' : inSync ? '#a4ff3d' : '#ff3da4';
+    const cometColor = isIdle ? '#3df0ff' : inSync ? '#a4ff3d' : '#3df0ff';
+    const breath = isIdle
+      ? 0.5 + 0.5 * Math.sin((performance.now() / 800) * Math.PI * 2)
+      : 1;
     ctx.save();
-    // Halo — dim ambient, brightens when in-sync
-    const haloAlpha = inSync ? 0.35 : 0.18;
+    // Halo — dim ambient, brightens when in-sync, breathes while idle
+    const haloAlpha = isIdle
+      ? 0.18 + 0.18 * breath
+      : inSync
+      ? 0.35
+      : 0.18;
     const grad = ctx.createRadialGradient(x, y, 0, x, y, pacer.leniency);
     grad.addColorStop(0, rgba(haloColor, haloAlpha));
     grad.addColorStop(0.7, rgba(haloColor, haloAlpha * 0.4));
@@ -938,7 +982,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     // Halo edge ring
     ctx.shadowBlur = 12;
     ctx.shadowColor = haloColor;
-    ctx.strokeStyle = rgba(haloColor, inSync ? 0.7 : 0.4);
+    ctx.strokeStyle = rgba(haloColor, isIdle ? 0.4 + 0.3 * breath : inSync ? 0.7 : 0.4);
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(x, y, pacer.leniency, 0, Math.PI * 2);
@@ -948,7 +992,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     ctx.shadowColor = cometColor;
     ctx.fillStyle = cometColor;
     ctx.beginPath();
-    ctx.arc(x, y, 9, 0, Math.PI * 2);
+    ctx.arc(x, y, isIdle ? 8 + 1.5 * breath : 9, 0, Math.PI * 2);
     ctx.fill();
     // White hot core
     ctx.shadowBlur = 12;
@@ -957,6 +1001,16 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     ctx.beginPath();
     ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
+    // Idle "tap here" hint above the comet
+    if (isIdle) {
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = haloColor;
+      ctx.fillStyle = rgba(haloColor, 0.6 + 0.3 * breath);
+      ctx.font = 'bold 9px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('START', x, y - pacer.leniency - 12);
+    }
     ctx.restore();
   }
 
@@ -1043,7 +1097,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
 
     // Pacer comet (Chapter 5 — Pulse). Drawn above the line so the player
     // always knows where to be regardless of how thick their paint is.
-    if (pacer && (pacerStateRef.current.active || pacerStateRef.current.finished)) {
+    // Rendered in three states (idle / active / finished) — see drawPacerComet.
+    if (pacer && !resultMode) {
       drawPacerComet(ctx);
     }
 

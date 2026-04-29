@@ -15,7 +15,7 @@ import {
   type ChallengeMeta,
 } from './game/challenges';
 import { generateMultiShapePath, generateShapePath } from './game/shapes';
-import { scoreAttempt as runScoreAttempt } from './game/scoring';
+import { scoreAttempt as runScoreAttempt, scorePacerAttempt as runScorePacerAttempt } from './game/scoring';
 import { loadState, resetState, saveState } from './game/storage';
 import { assistStrengthForAttempt } from './game/assist';
 import {
@@ -92,7 +92,20 @@ export default function App() {
     elapsed: number,
     challengeId: string,
     targetPath: Point[],
+    pacerCtx?: { syncRatio: number; pacerFinished: boolean },
   ): AttemptResult {
+    if (currentChallenge.pacer && pacerCtx) {
+      return runScorePacerAttempt({
+        playerPath,
+        targetUnitPath: targetPath,
+        shape: currentChallenge.shape,
+        syncRatio: pacerCtx.syncRatio,
+        pacerFinished: pacerCtx.pacerFinished,
+        challengeId,
+        targetTime: currentChallenge.targetTime,
+        elapsed,
+      });
+    }
     return runScoreAttempt({
       playerPath,
       targetUnitPath: targetPath,

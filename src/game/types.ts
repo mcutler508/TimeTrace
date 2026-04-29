@@ -36,6 +36,28 @@ export interface Challenge {
    * traces from memory ("Flash & Trace" mechanic — Chapter 4 BLITZ).
    */
   flashGuideMs?: number;
+  /**
+   * When set, the level runs in Pulse / Pacer Rhythm mode (Chapter 5). A
+   * comet travels along the target path at the configured speed; the player
+   * must keep their stroke head inside the comet's leniency halo. Scoring
+   * shifts from "finish near targetTime" to "% of run spent in sync".
+   */
+  pacer?: PacerConfig;
+}
+
+export interface PacerConfig {
+  /** Pacer travel speed in canvas pixels per second. */
+  speed: number;
+  /** Halo radius in canvas pixels. Stroke head within this distance counts as in-sync. */
+  leniency: number;
+  /**
+   * Speed modulation across the run.
+   * - 'flat': constant speed (default)
+   * - 'accelerate': starts at 70% speed, ends at 130% speed
+   * - 'decelerate': starts at 130% speed, ends at 70% speed
+   * - 'pulse': sin-modulated ±25% on a 1.5-second period
+   */
+  speedCurve?: 'flat' | 'accelerate' | 'decelerate' | 'pulse';
 }
 
 export interface Point {
@@ -77,6 +99,8 @@ export interface AttemptResult {
   grade: Grade;
   /** For multi-shape challenges: the per-segment shape score [0..1]. */
   segmentScores?: number[];
+  /** For Chapter 5 pacer mode: fraction of the run spent in-sync with the pacer (0..1). */
+  syncRatio?: number;
 }
 
 export interface SavedGameState {

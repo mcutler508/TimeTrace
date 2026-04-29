@@ -270,6 +270,57 @@ export function scoreShape(
   return Math.round(Math.max(0, Math.min(100, score)));
 }
 
+export interface ScorePacerInput {
+  playerPath: Point[];
+  targetUnitPath: Point[];
+  shape: ShapeType;
+  syncRatio: number; // 0..1 — fraction of run spent within pacer halo
+  pacerFinished: boolean;
+  challengeId: string;
+  targetTime: number;
+  elapsed: number;
+}
+
+/**
+ * Score a Chapter 5 (Pulse) attempt. Primary metric is the rolling sync ratio
+ * between player stroke head and the pacer comet. Shape accuracy is folded in
+ * as a multiplier so paths that drift wildly off the guide while still
+ * matching the pacer's speed don't score full marks.
+ */
+export function scorePacerAttempt({
+  playerPath,
+  targetUnitPath,
+  shape,
+  syncRatio,
+  pacerFinished,
+  challengeId,
+  targetTime,
+  elapsed,
+}: ScorePacerInput): AttemptResult {
+  const tShape = scoreShape(playerPath, targetUnitPath, shape);
+  const syncScore = Math.round(Math.max(0, Math.min(1, syncRatio)) * 100);
+  // Shape acts as a 60/40 multiplier on the sync score: at shape=100, no
+  // penalty; at shape=0, sync is halved. Stops players from getting a perfect
+  // score by pacing without actually drawing the shape.
+  const shapeMultiplier = 0.6 + 0.4 * (tShape / 100);
+  let final = Math.round(syncScore * shapeMultiplier);
+  // Soft penalty for not letting the pacer finish (player ended stroke early).
+  if (!pacerFinished) final = Math.round(final * 0.9);
+  return {
+    challengeId,
+    shapeScore: tShape,
+    timingScore: syncScore, // re-using the timingScore slot to carry sync %
+    finalScore: final,
+    targetTime,
+    actualTime: elapsed,
+    timeDelta: elapsed - targetTime,
+    playerPath,
+    targetPath: targetUnitPath,
+    grade: gradeFor(final),
+    syncRatio,
+  };
+}
+
 export function combineFinalScore(shape: number, timing: number): number {
   // 70/30 (shape/timing) so a perfect-time scribble can no longer floor at 50.
   // Clean traces stay near the top of the band; nonsense traces lose their

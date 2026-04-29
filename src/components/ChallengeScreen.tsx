@@ -3,6 +3,7 @@ import DrawingCanvas, { type DrawingCanvasHandle } from './DrawingCanvas';
 import TutorialHint from './TutorialHint';
 import InlineResultOverlay from './InlineResultOverlay';
 import PortalTutorial, { getPortalTutorialSeen } from './PortalTutorial';
+import PacerTutorial, { getPacerTutorialSeen } from './PacerTutorial';
 import type { AttemptResult, Point } from '../game/types';
 import { isClosedShape, shapeDisplayName } from '../game/shapes';
 import { haptics } from '../game/haptics';
@@ -42,6 +43,7 @@ interface Props {
     elapsed: number,
     challengeId: string,
     targetUnitPath: Point[],
+    pacerCtx?: { syncRatio: number; pacerFinished: boolean },
   ) => AttemptResult;
   paintStyleId: PaintStyleId;
   /** Color swatch id ('accent' | 'cyan' | hex…). 'accent' follows the chapter accent. */
@@ -92,14 +94,26 @@ export default function ChallengeScreen({
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   const isMultiShape = !!challenge.segments && challenge.segments.length > 0;
+  const isPacerChallenge = !!challenge.pacer;
   const [showPortalTutorial, setShowPortalTutorial] = useState(false);
+  const [showPacerTutorial, setShowPacerTutorial] = useState(false);
   useEffect(() => {
     if (isMultiShape && !getPortalTutorialSeen()) {
       setShowPortalTutorial(true);
     } else {
       setShowPortalTutorial(false);
     }
-  }, [challenge.id, isMultiShape]);
+    if (isPacerChallenge && !getPacerTutorialSeen()) {
+      setShowPacerTutorial(true);
+    } else {
+      setShowPacerTutorial(false);
+    }
+  }, [challenge.id, isMultiShape, isPacerChallenge]);
+
+  // Pacer-mode running state. `liveSync` drives the in-game sync meter; the
+  // final sync ratio is captured from onPacerComplete.
+  const [liveSync, setLiveSync] = useState(0);
+  const finalSyncRef = useRef<{ ratio: number; finished: boolean } | null>(null);
 
   const accent = accentFor(challenge.shape);
 
@@ -152,6 +166,8 @@ export default function ChallengeScreen({
     setSubmitMeta(null);
     setPerfectFreeze(false);
     setMissFlicker(false);
+    setLiveSync(0);
+    finalSyncRef.current = null;
     startTimeRef.current = null;
     portalPausedAtRef.current = null;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -216,6 +232,14 @@ export default function ChallengeScreen({
     rafRef.current = requestAnimationFrame(tick);
   }
 
+  function handlePacerTick(syncPct: number, _finished: boolean) {
+    setLiveSync(syncPct);
+  }
+
+  function handlePacerComplete(finalRatio: number) {
+    finalSyncRef.current = { ratio: finalRatio, finished: true };
+  }
+
   function handleStrokeEnd(path: Point[]) {
     if (phaseRef.current !== 'running' || startTimeRef.current == null) return;
     const finalElapsed = (performance.now() - startTimeRef.current) / 1000;
@@ -223,7 +247,13 @@ export default function ChallengeScreen({
     rafRef.current = null;
     setElapsed(finalElapsed);
 
-    const r = scoreAttempt(path, finalElapsed, challenge.id, targetUnitPath);
+    const pacerCtx = isPacerChallenge
+      ? {
+          syncRatio: finalSyncRef.current?.ratio ?? 0,
+          pacerFinished: finalSyncRef.current?.finished ?? false,
+        }
+      : undefined;
+    const r = scoreAttempt(path, finalElapsed, challenge.id, targetUnitPath, pacerCtx);
     setResult(r);
 
     const meta = onSubmit(r, path, finalElapsed);
@@ -356,9 +386,13 @@ export default function ChallengeScreen({
           )}
         </div>
         <div className="card-sticker px-3 py-2 -rotate-2">
-          <div className="text-[9px] uppercase tracking-[0.28em] text-splat-yellow font-bold leading-none">Target</div>
+          <div className="text-[9px] uppercase tracking-[0.28em] text-splat-yellow font-bold leading-none">
+            {isPacerChallenge ? 'Pacer' : 'Target'}
+          </div>
           <div className="font-poster text-lg text-splat-paper tabular-nums leading-none mt-1">
-            {target.toFixed(2)}s
+            {isPacerChallenge
+              ? `${challenge.pacer!.speed}px/s`
+              : `${target.toFixed(2)}s`}
           </div>
         </div>
       </header>
@@ -427,6 +461,9 @@ export default function ChallengeScreen({
           onStrokeEnd={handleStrokeEnd}
           onPortalPause={handlePortalPause}
           onPortalResume={handlePortalResume}
+          pacer={challenge.pacer}
+          onPacerTick={handlePacerTick}
+          onPacerComplete={handlePacerComplete}
         />
 
         <TutorialHint
@@ -448,17 +485,41 @@ export default function ChallengeScreen({
           show={showPortalTutorial}
           onDismiss={() => setShowPortalTutorial(false)}
         />
+        <PacerTutorial
+          show={showPacerTutorial}
+          onDismiss={() => setShowPacerTutorial(false)}
+        />
 
         {phase !== 'result' && phase !== 'memorize' && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2">
-            <div
-              className={`font-poster text-xl tabular-nums px-4 py-1 rounded-full bg-splat-black border-2 border-splat-paper/40 ${
-                warmth > 0.4 ? 'timer-pulse' : ''
-              }`}
-              style={timerColorStyle}
-            >
-              {elapsed.toFixed(2)}s
-            </div>
+            {isPacerChallenge ? (
+              <div
+                className="font-poster text-xl tabular-nums px-4 py-1 rounded-full bg-splat-black border-2"
+                style={{
+                  color:
+                    liveSync >= 0.85
+                      ? '#a4ff3d'
+                      : liveSync >= 0.5
+                      ? '#ffe83d'
+                      : '#ff3da4',
+                  borderColor:
+                    liveSync >= 0.85
+                      ? 'rgba(164, 255, 61, 0.5)'
+                      : 'rgba(255, 245, 224, 0.4)',
+                }}
+              >
+                SYNC {Math.round(liveSync * 100)}%
+              </div>
+            ) : (
+              <div
+                className={`font-poster text-xl tabular-nums px-4 py-1 rounded-full bg-splat-black border-2 border-splat-paper/40 ${
+                  warmth > 0.4 ? 'timer-pulse' : ''
+                }`}
+                style={timerColorStyle}
+              >
+                {elapsed.toFixed(2)}s
+              </div>
+            )}
           </div>
         )}
 
@@ -509,11 +570,15 @@ export default function ChallengeScreen({
           phase === 'memorize'
             ? 'STUDY THE SHAPE'
             : phase === 'armed'
-            ? isFlashChallenge
+            ? isPacerChallenge
+              ? 'STAY ON THE COMET · MATCH ITS PACE'
+              : isFlashChallenge
               ? 'TRACE FROM MEMORY'
               : 'TOUCH SHAPE · LIFT TO STOP'
             : phase === 'running'
-            ? 'STOP IN THE PERFECT BAND'
+            ? isPacerChallenge
+              ? 'LOCK IN · DON’T RUSH AHEAD'
+              : 'STOP IN THE PERFECT BAND'
             : 'RETRY · NEXT'
         }
       />

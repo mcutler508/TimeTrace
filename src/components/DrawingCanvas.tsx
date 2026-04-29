@@ -1,6 +1,6 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, forwardRef } from 'react';
-import type { AttemptResult, Point } from '../game/types';
-import { scaleNormalizedToCanvas, segmentsIntersect } from '../game/pathUtils';
+import type { AttemptResult, PacerConfig, Point } from '../game/types';
+import { pathLength, sampleAt, scaleNormalizedToCanvas, segmentsIntersect } from '../game/pathUtils';
 import { haptics } from '../game/haptics';
 import { sfx } from '../game/audio';
 import {
@@ -45,6 +45,12 @@ interface Props {
   onPortalPause?: () => void;
   /** Called when the player successfully places inside the OUT landing ring. Host should resume the timer. */
   onPortalResume?: () => void;
+  /** Chapter 5 (Pulse): when set, level runs in pacer-rhythm mode. */
+  pacer?: PacerConfig;
+  /** Pacer mode — fired each frame while pacer is running. `syncPct` is the rolling 1-second sync %. */
+  onPacerTick?: (syncPct: number, finished: boolean) => void;
+  /** Pacer mode — fired once when the pacer reaches the end of the path. `finalSyncRatio` is the cumulative 0..1. */
+  onPacerComplete?: (finalSyncRatio: number) => void;
 }
 
 const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCanvas(
@@ -68,6 +74,9 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     onStrokeEnd,
     onPortalPause,
     onPortalResume,
+    pacer,
+    onPacerTick,
+    onPacerComplete,
   },
   ref,
 ) {
@@ -108,6 +117,41 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
    * approach zone) → 1 (right at the slash midpoint).
    */
   const portalApproachRef = useRef<{ pairIndex: number; proximity: number } | null>(null);
+  /**
+   * Chapter 5 (Pulse) pacer state. Active only when the `pacer` prop is set
+   * AND the player is currently drawing. `arcLengthCovered` walks forward each
+   * frame at the configured speed; the comet's canvas position is sampled
+   * from the target path by arc-length fraction. Sync samples track how many
+   * frames the player's stroke head was within `pacer.leniency` of the comet.
+   */
+  const pacerStateRef = useRef<{
+    active: boolean;
+    startedAt: number;
+    elapsedMs: number;
+    arcLengthCovered: number;
+    cometPos: { x: number; y: number };
+    cometTangent: { x: number; y: number };
+    syncSamples: number;
+    inSyncSamples: number;
+    rollingWindow: { t: number; inSync: boolean }[];
+    finished: boolean;
+    completedFired: boolean;
+    lastInSync: boolean;
+  }>({
+    active: false,
+    startedAt: 0,
+    elapsedMs: 0,
+    arcLengthCovered: 0,
+    cometPos: { x: 0, y: 0 },
+    cometTangent: { x: 1, y: 0 },
+    syncSamples: 0,
+    inSyncSamples: 0,
+    rollingWindow: [],
+    finished: false,
+    completedFired: false,
+    lastInSync: false,
+  });
+  const pacerRafRef = useRef<number | null>(null);
   /** Particles for the OUT-landing burst (separate from the perfect-attempt burst). */
   const landingBurstRef = useRef<
     { x: number; y: number; vx: number; vy: number; startedAt: number; hue: string }[]
@@ -122,6 +166,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       usedPortalsRef.current = new Set();
       portalStateRef.current = { mode: 'tracing' };
       portalApproachRef.current = null;
+      stopPacer();
       landingBurstRef.current = [];
       const c = canvasRef.current;
       if (c) {
@@ -180,6 +225,12 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasPortals, resultMode]);
+
+  // Stop the pacer when the target changes or we leave pacer mode mid-attempt.
+  useEffect(() => {
+    return () => stopPacer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetUnitPath, pacer, resultMode]);
 
   useEffect(() => {
     redraw();
@@ -732,6 +783,183 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     ctx.restore();
   }
 
+  /**
+   * Cached arc length of the target path in canvas pixels. Recomputed on
+   * resize / target change inside fitCanvas + targetCanvasPath.
+   */
+  const totalPathLengthRef = useRef(0);
+
+  function refreshPathLength() {
+    if (!pacer) {
+      totalPathLengthRef.current = 0;
+      return;
+    }
+    const tCanvas = targetCanvasPath();
+    totalPathLengthRef.current = pathLength(tCanvas);
+  }
+
+  /**
+   * Apply the configured speed curve to the base pacer speed at parametric
+   * position t in [0, 1]. Returns the *current* px/sec rate.
+   */
+  function pacerSpeedAt(progress: number): number {
+    if (!pacer) return 0;
+    const base = pacer.speed;
+    switch (pacer.speedCurve) {
+      case 'accelerate':
+        return base * (0.7 + 0.6 * progress);
+      case 'decelerate':
+        return base * (1.3 - 0.6 * progress);
+      case 'pulse': {
+        // ±25% modulation on a 1.5s period (uses elapsed time, not progress)
+        const ms = pacerStateRef.current.elapsedMs;
+        const phase = (ms / 1500) * Math.PI * 2;
+        return base * (1 + 0.25 * Math.sin(phase));
+      }
+      case 'flat':
+      default:
+        return base;
+    }
+  }
+
+  function startPacer() {
+    if (!pacer) return;
+    refreshPathLength();
+    if (totalPathLengthRef.current <= 0) return;
+    const tCanvas = targetCanvasPath();
+    const startSample = sampleAt(tCanvas, 0);
+    pacerStateRef.current = {
+      active: true,
+      startedAt: performance.now(),
+      elapsedMs: 0,
+      arcLengthCovered: 0,
+      cometPos: { x: startSample.point.x, y: startSample.point.y },
+      cometTangent: startSample.tangent,
+      syncSamples: 0,
+      inSyncSamples: 0,
+      rollingWindow: [],
+      finished: false,
+      completedFired: false,
+      lastInSync: false,
+    };
+    if (pacerRafRef.current != null) cancelAnimationFrame(pacerRafRef.current);
+    const tick = (now: number) => {
+      const ps = pacerStateRef.current;
+      if (!ps.active) {
+        pacerRafRef.current = null;
+        return;
+      }
+      ps.elapsedMs = now - ps.startedAt;
+      const total = totalPathLengthRef.current;
+      // Integrate distance covered. Use small dt steps for the variable-speed
+      // curves so the integral matches the player's perception.
+      const lastTickRef = (tick as unknown as { _last?: number })._last ?? now;
+      const dt = Math.max(0, Math.min(64, now - lastTickRef)) / 1000;
+      (tick as unknown as { _last?: number })._last = now;
+      const progress = Math.min(1, ps.arcLengthCovered / Math.max(1, total));
+      ps.arcLengthCovered += pacerSpeedAt(progress) * dt;
+      if (ps.arcLengthCovered >= total) {
+        ps.arcLengthCovered = total;
+        if (!ps.finished) {
+          ps.finished = true;
+        }
+      }
+      const tCanvasNow = targetCanvasPath();
+      const sample = sampleAt(tCanvasNow, ps.arcLengthCovered / Math.max(1, total));
+      ps.cometPos = { x: sample.point.x, y: sample.point.y };
+      ps.cometTangent = sample.tangent;
+      // Sync sampling — only when player is currently drawing.
+      if (drawingRef.current && pathRef.current.length > 0) {
+        const head = pathRef.current[pathRef.current.length - 1];
+        const dist = Math.hypot(head.x - ps.cometPos.x, head.y - ps.cometPos.y);
+        const inSync = dist <= pacer.leniency;
+        ps.syncSamples++;
+        if (inSync) ps.inSyncSamples++;
+        ps.rollingWindow.push({ t: now, inSync });
+        // Trim to ~1 second window
+        while (ps.rollingWindow.length > 0 && now - ps.rollingWindow[0].t > 1000) {
+          ps.rollingWindow.shift();
+        }
+        if (inSync !== ps.lastInSync) {
+          if (inSync) haptics.micro();
+          ps.lastInSync = inSync;
+        }
+      }
+      const rollingIn = ps.rollingWindow.filter((s) => s.inSync).length;
+      const rollingPct =
+        ps.rollingWindow.length > 0 ? rollingIn / ps.rollingWindow.length : 0;
+      onPacerTick?.(rollingPct, ps.finished);
+      if (ps.finished && !ps.completedFired) {
+        ps.completedFired = true;
+        const finalRatio =
+          ps.syncSamples > 0 ? ps.inSyncSamples / ps.syncSamples : 0;
+        onPacerComplete?.(finalRatio);
+      }
+      redraw();
+      pacerRafRef.current = requestAnimationFrame(tick);
+    };
+    pacerRafRef.current = requestAnimationFrame(tick);
+  }
+
+  function stopPacer() {
+    pacerStateRef.current.active = false;
+    if (pacerRafRef.current != null) {
+      cancelAnimationFrame(pacerRafRef.current);
+      pacerRafRef.current = null;
+    }
+    delete (startPacer as unknown as { _last?: number })._last;
+  }
+
+  function getPacerSyncRatio(): number {
+    const ps = pacerStateRef.current;
+    return ps.syncSamples > 0 ? ps.inSyncSamples / ps.syncSamples : 0;
+  }
+
+  function drawPacerComet(ctx: CanvasRenderingContext2D) {
+    const ps = pacerStateRef.current;
+    if (!ps.active && !ps.finished) return;
+    if (!pacer) return;
+    const inSync = ps.lastInSync && drawingRef.current;
+    const haloColor = inSync ? '#a4ff3d' : '#ff3da4';
+    const cometColor = inSync ? '#a4ff3d' : '#3df0ff';
+    const x = ps.cometPos.x;
+    const y = ps.cometPos.y;
+    ctx.save();
+    // Halo — dim ambient, brightens when in-sync
+    const haloAlpha = inSync ? 0.35 : 0.18;
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, pacer.leniency);
+    grad.addColorStop(0, rgba(haloColor, haloAlpha));
+    grad.addColorStop(0.7, rgba(haloColor, haloAlpha * 0.4));
+    grad.addColorStop(1, rgba(haloColor, 0));
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, pacer.leniency, 0, Math.PI * 2);
+    ctx.fill();
+    // Halo edge ring
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = haloColor;
+    ctx.strokeStyle = rgba(haloColor, inSync ? 0.7 : 0.4);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, pacer.leniency, 0, Math.PI * 2);
+    ctx.stroke();
+    // Comet head
+    ctx.shadowBlur = 26;
+    ctx.shadowColor = cometColor;
+    ctx.fillStyle = cometColor;
+    ctx.beginPath();
+    ctx.arc(x, y, 9, 0, Math.PI * 2);
+    ctx.fill();
+    // White hot core
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = '#fff5e0';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   function redraw() {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -811,6 +1039,12 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       applyApproachTransform(approach, slashes);
     } else {
       applyApproachTransform(null, []);
+    }
+
+    // Pacer comet (Chapter 5 — Pulse). Drawn above the line so the player
+    // always knows where to be regardless of how thick their paint is.
+    if (pacer && (pacerStateRef.current.active || pacerStateRef.current.finished)) {
+      drawPacerComet(ctx);
     }
 
     if (landingBurstRef.current.length > 0) {
@@ -1146,6 +1380,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     haptics.start();
     sfx.start();
     onStrokeStart?.();
+    if (pacer) startPacer();
     redraw();
   }
 
@@ -1210,6 +1445,16 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     }
     haptics.stop();
     sfx.stop();
+    if (pacer) {
+      // Force a final completion fire so the host gets the sync ratio even if
+      // the pacer hadn't reached the end yet (player ended the stroke early).
+      const ps = pacerStateRef.current;
+      if (!ps.completedFired) {
+        ps.completedFired = true;
+        onPacerComplete?.(getPacerSyncRatio());
+      }
+      stopPacer();
+    }
     onStrokeEnd?.(finalPath);
   }
 

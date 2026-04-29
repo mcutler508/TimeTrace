@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   PAINT_PALETTE,
   PAINT_STYLES,
@@ -47,29 +47,58 @@ export default function PaintStylePicker({
 
   const allowColorChange = !selectedMeta.noColorCustomization;
   const showVariants = (selectedMeta.variants?.length ?? 0) > 1;
+  const [open, setOpen] = useState(false);
+
+  const previewColor = resolvePaintColor(selectedColorId, PREVIEW_ACCENT);
 
   return (
     <section
       aria-labelledby="paint-style-heading"
-      className="card-sticker-paper px-4 py-4 rotate-[0.4deg] flex flex-col gap-3"
+      className="card-sticker-paper px-4 py-3 rotate-[0.4deg] flex flex-col gap-3"
     >
-      <header className="flex items-baseline justify-between">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls="paint-panel-body"
+        onClick={() => {
+          haptics.tap();
+          sfx.tap();
+          setOpen((v) => !v);
+        }}
+        className="flex items-center gap-3 -mx-1 px-1 py-1 active:translate-y-[1px] transition-transform"
+      >
         <h2
           id="paint-style-heading"
           className="text-poster text-[11px] tracking-[0.28em] text-splat-pink"
         >
           PAINT
         </h2>
-        <span className="text-[10px] uppercase tracking-[0.22em] text-splat-black/60">
-          Pick · Tint · Pattern
+        <span className="ml-auto text-[10px] uppercase tracking-[0.22em] text-splat-black/55">
+          {selectedMeta.label}
         </span>
-      </header>
+        <span
+          className={`text-splat-pink text-[12px] font-bold transition-transform ${
+            open ? 'rotate-180' : ''
+          }`}
+          aria-hidden
+        >
+          ▾
+        </span>
+      </button>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x scroll-hide-x edge-fade-x">
-        {PAINT_STYLES.map((style) => {
-          const active = style.id === selectedId;
-          const locked = !style.unlocked;
-          const colorId = paintColorByStyle[style.id] ?? 'accent';
+      {open && (
+        <div id="paint-panel-body" className="flex flex-col gap-3 animate-fadeIn">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[10px] uppercase tracking-[0.22em] text-splat-violet font-bold">
+              Pick · Tint · Pattern
+            </span>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x scroll-hide-x edge-fade-x">
+            {PAINT_STYLES.map((style) => {
+              const active = style.id === selectedId;
+              const locked = !style.unlocked;
+              const colorId = paintColorByStyle[style.id] ?? 'accent';
           const variantId = paintVariantByStyle[style.id] ?? defaultVariantFor(style.id);
           const previewColor = resolvePaintColor(colorId, PREVIEW_ACCENT);
           return (
@@ -115,16 +144,14 @@ export default function PaintStylePicker({
                     Locked
                   </span>
                 )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
 
-      <p className="text-[10px] text-splat-black/65">{selectedMeta.blurb}</p>
+          <p className="text-[10px] text-splat-black/65">{selectedMeta.blurb}</p>
 
-      {(allowColorChange || showVariants) && (
-        <div className="flex flex-col gap-2.5 pt-1.5 border-t-2 border-dashed border-splat-black/15">
           {allowColorChange && (
             <ColorRow
               selectedColorId={selectedColorId}
@@ -141,7 +168,7 @@ export default function PaintStylePicker({
             <VariantRow
               selectedStyleId={selectedId}
               selectedVariantId={selectedVariantId}
-              previewColor={resolvePaintColor(selectedColorId, PREVIEW_ACCENT)}
+              previewColor={previewColor}
               onSelect={(variantId) => {
                 haptics.tap();
                 sfx.tap();

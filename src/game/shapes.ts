@@ -246,10 +246,16 @@ function springPath(): Point[] {
 }
 
 function pretzelPath(): Point[] {
-  // Symmetric pretzel knot.
+  // Symmetric four-leaf pretzel/clover knot (rose curve r = sin(2t)).
+  // The natural parametric starts at t=0 where sin(2t)=0 — the dead center
+  // of the shape, where all four leaves intersect. Starting there means any
+  // portal anchored to the path's start or end lands smack in the middle of
+  // the visual shape, which reads as broken UI. Shift t by PI/4 so the path
+  // starts at the tip of the upper-right leaf instead.
   const out: Point[] = [];
+  const tShift = Math.PI / 4;
   for (let i = 0; i <= SAMPLES; i++) {
-    const t = (i / SAMPLES) * Math.PI * 2;
+    const t = (i / SAMPLES) * Math.PI * 2 + tShift;
     const x = 0.5 + 0.34 * Math.sin(2 * t) * Math.cos(t);
     const y = 0.5 + 0.34 * Math.sin(2 * t) * Math.sin(t);
     out.push({ x, y });
@@ -462,6 +468,7 @@ const TRULY_CLOSED_SHAPES = new Set<ShapeType>([
   'heart',
   'infinity',
   'trefoil',
+  'pretzel',
 ]);
 
 /**

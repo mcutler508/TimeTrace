@@ -450,6 +450,21 @@ export const CHALLENGES: ChallengeMeta[] = [
     ],
   },
 
+  // ---------- Bonus level (sits between Ch3 and Ch4) ----------
+  // Speed challenge: trace every cursive lowercase letter A→Z back to back.
+  // Each letter must hit ≥50% accuracy to advance. Score = speed × mean accuracy.
+  {
+    id: 'alphabet-rush-bonus',
+    shape: 'circle', // unused for letter-sequence levels; kept for accent color
+    targetTime: 45,
+    guideOpacity: 0.5,
+    difficulty: 'hard',
+    unlockThreshold: 2200,
+    title: 'Alphabet Rush',
+    chapter: 3,
+    letterSequence: 'abcdefghijklmnopqrstuvwxyz'.split(''),
+  },
+
   // ---------- Chapter 4 — BLITZ (speed + accuracy) ----------
   // Two flavors alternating: tight-time basic shapes (no flash) and
   // flash-trace levels that reveal the guide for ~1s before it vanishes.

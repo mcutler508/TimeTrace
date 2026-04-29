@@ -321,6 +321,78 @@ export function scorePacerAttempt({
   };
 }
 
+/**
+ * Score a single cursive-letter trace. Uses Hausdorff distance on
+ * bbox-normalized resampled paths, plus a length-ratio sanity check so a
+ * one-pixel tap can't pass. Returns 0..100. Intentionally more forgiving
+ * than scoreShape — letters have weird parametric properties (open paths,
+ * sharp corners, descenders) and the gameplay needs a low floor for advance.
+ */
+export function scoreLetterStroke(
+  playerPath: Point[],
+  letterUnitPath: Point[],
+): number {
+  if (playerPath.length < 4) return 0;
+  const playerNorm = normalizeToUnit(playerPath);
+  const targetNorm = normalizeToUnit(letterUnitPath);
+  const playerSampled = resamplePath(playerNorm, RESAMPLE_N);
+  const targetSampled = resamplePath(targetNorm, RESAMPLE_N);
+  // Try both directions — players might trace the letter "backwards" and
+  // it should still register.
+  const fwd = modifiedHausdorff(playerSampled, targetSampled);
+  const rev = modifiedHausdorff(playerSampled.slice().reverse(), targetSampled);
+  const dist = Math.min(fwd, rev);
+  let score = Math.max(0, 100 - dist * 240);
+  // Length sanity: if the player drew nothing close to letter-sized, cap low.
+  const playerLen = pathLength(playerPath);
+  const targetLen = pathLength(letterUnitPath);
+  const playerBB = boundingBox(playerPath);
+  const playerSize = Math.max(playerBB.width, playerBB.height);
+  const playerRel = playerLen / Math.max(playerSize, 1);
+  if (playerRel < targetLen * 0.4) {
+    score *= Math.max(0.2, playerRel / Math.max(targetLen * 0.4, 0.0001));
+  }
+  return Math.round(Math.max(0, Math.min(100, score)));
+}
+
+/**
+ * Score an Alphabet Rush attempt: total elapsed time → a speed score on a
+ * piecewise curve, multiplied by mean per-letter accuracy. Assumes the
+ * player completed all letters (the level only ends on completion).
+ */
+export function scoreAlphabetRush(
+  perLetterAccuracy: number[],
+  elapsedSeconds: number,
+  challengeId: string,
+  targetTime: number,
+): AttemptResult {
+  const meanAccuracy =
+    perLetterAccuracy.length > 0
+      ? perLetterAccuracy.reduce((a, b) => a + b, 0) / perLetterAccuracy.length
+      : 0;
+  // Speed curve — generous early, harsh late. Tuned so a clean ~45s run lands
+  // around 90 and a pokey 90s run lands around 50.
+  let speedScore: number;
+  if (elapsedSeconds <= 30) speedScore = 100;
+  else if (elapsedSeconds <= 60) speedScore = 100 - ((elapsedSeconds - 30) / 30) * 30; // 100→70
+  else if (elapsedSeconds <= 90) speedScore = 70 - ((elapsedSeconds - 60) / 30) * 30; // 70→40
+  else if (elapsedSeconds <= 120) speedScore = 40 - ((elapsedSeconds - 90) / 30) * 25; // 40→15
+  else speedScore = Math.max(5, 15 - (elapsedSeconds - 120) * 0.2);
+  const final = Math.round(speedScore * (meanAccuracy / 100));
+  return {
+    challengeId,
+    shapeScore: Math.round(meanAccuracy),
+    timingScore: Math.round(speedScore),
+    finalScore: final,
+    targetTime,
+    actualTime: elapsedSeconds,
+    timeDelta: elapsedSeconds - targetTime,
+    playerPath: [],
+    targetPath: [],
+    grade: gradeFor(final),
+  };
+}
+
 export function combineFinalScore(shape: number, timing: number): number {
   // 70/30 (shape/timing) so a perfect-time scribble can no longer floor at 50.
   // Clean traces stay near the top of the band; nonsense traces lose their

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ChallengeScreen, { type SubmitMeta } from './components/ChallengeScreen';
+import AlphabetRushScreen from './components/AlphabetRushScreen';
 import HomeScreen from './components/HomeScreen';
 import IntroCard from './components/IntroCard';
 import LeaderboardScreen from './components/LeaderboardScreen';
@@ -357,6 +358,20 @@ export default function App() {
         onSelectPaintStyle={handleSelectPaintStyle}
         onSelectPaintColor={handleSelectPaintColor}
         onSelectPaintVariant={handleSelectPaintVariant}
+      />
+    );
+  } else if (currentChallenge.letterSequence) {
+    viewBody = (
+      <AlphabetRushScreen
+        challenge={currentChallenge}
+        bestScore={bestScore}
+        streak={state.currentStreak}
+        onSubmit={handleSubmit}
+        onNext={handleNext}
+        onHome={canGoHome ? handleHome : undefined}
+        paintStyleId={activePaintStyle}
+        paintColorId={activePaintColorId}
+        paintVariant={activePaintVariant}
       />
     );
   } else {

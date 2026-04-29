@@ -43,6 +43,13 @@ export interface Challenge {
    * shifts from "finish near targetTime" to "% of run spent in sync".
    */
   pacer?: PacerConfig;
+  /**
+   * When set, the level cycles through this list of glyphs (cursive letters)
+   * one at a time. Each glyph must be traced to a minimum accuracy before
+   * the next appears. Score is total elapsed time × mean accuracy.
+   * (Bonus level — Alphabet Rush.)
+   */
+  letterSequence?: string[];
 }
 
 export interface PacerConfig {

@@ -13,23 +13,139 @@ export type PaintStyleId =
   | 'constellation'
   | 'laser';
 
+export interface PaintStyleVariant {
+  id: string;
+  label: string;
+}
+
 export interface PaintStyleMeta {
   id: PaintStyleId;
   label: string;
   blurb: string;
   unlocked: boolean;
   unlockHint?: string;
+  /** If true, the style ignores its color input (e.g. Prism is always rainbow). */
+  noColorCustomization?: boolean;
+  /** Optional pattern variants. First entry is the default. */
+  variants?: PaintStyleVariant[];
+}
+
+export interface PaintColorSwatch {
+  /** 'accent' = follow the chapter accent (default behavior). */
+  id: string;
+  label: string;
+  /** Resolved hex string. `null` means "follow chapter accent". */
+  hex: string | null;
+}
+
+export const PAINT_PALETTE: PaintColorSwatch[] = [
+  { id: 'accent', label: 'Chapter', hex: null },
+  { id: 'cyan', label: 'Cyan', hex: '#3df0ff' },
+  { id: 'pink', label: 'Pink', hex: '#ff3da4' },
+  { id: 'gold', label: 'Gold', hex: '#ffe83d' },
+  { id: 'lime', label: 'Lime', hex: '#a4ff3d' },
+  { id: 'violet', label: 'Violet', hex: '#a44dff' },
+  { id: 'orange', label: 'Orange', hex: '#ff7a3d' },
+  { id: 'paper', label: 'Paper', hex: '#fff5e0' },
+];
+
+export const DEFAULT_COLOR_ID = 'accent';
+
+export function isPaintColorId(id: unknown): id is string {
+  return typeof id === 'string' && PAINT_PALETTE.some((c) => c.id === id);
+}
+
+export function colorSwatchFor(id: string): PaintColorSwatch {
+  return PAINT_PALETTE.find((c) => c.id === id) ?? PAINT_PALETTE[0];
+}
+
+/**
+ * Resolve the hex for a color id, falling back to the chapter accent. Use
+ * this at the render-call site so the chapter's accent flows through when
+ * the user has selected the "Chapter" swatch.
+ */
+export function resolvePaintColor(colorId: string | undefined, accentHex: string): string {
+  if (!colorId || colorId === DEFAULT_COLOR_ID) return accentHex;
+  const swatch = PAINT_PALETTE.find((c) => c.id === colorId);
+  return swatch?.hex ?? accentHex;
+}
+
+export function defaultVariantFor(styleId: PaintStyleId): string | undefined {
+  const meta = PAINT_STYLES.find((s) => s.id === styleId);
+  return meta?.variants?.[0]?.id;
+}
+
+export function isValidVariant(styleId: PaintStyleId, variantId: string | undefined): boolean {
+  if (!variantId) return false;
+  const meta = PAINT_STYLES.find((s) => s.id === styleId);
+  return !!meta?.variants?.some((v) => v.id === variantId);
 }
 
 export const PAINT_STYLES: PaintStyleMeta[] = [
   { id: 'neon', label: 'Neon', blurb: 'Wide glow, sticker core. The classic.', unlocked: true },
-  { id: 'laser', label: 'Laser', blurb: 'Bright sci-fi beam with sparking core.', unlocked: true },
-  { id: 'comet', label: 'Comet', blurb: 'Glowing head, twinkling stardust tail.', unlocked: true },
+  {
+    id: 'laser',
+    label: 'Laser',
+    blurb: 'Bright sci-fi beam with sparking core.',
+    unlocked: true,
+    variants: [
+      { id: 'classic', label: 'Classic' },
+      { id: 'plasma', label: 'Plasma' },
+      { id: 'razor', label: 'Razor' },
+    ],
+  },
+  {
+    id: 'comet',
+    label: 'Comet',
+    blurb: 'Glowing head, twinkling stardust tail.',
+    unlocked: true,
+    variants: [
+      { id: 'classic', label: 'Classic' },
+      { id: 'long', label: 'Long Tail' },
+      { id: 'compact', label: 'Compact' },
+    ],
+  },
   { id: 'nebula', label: 'Nebula', blurb: 'Soft cloud puffs in tri-color drift.', unlocked: true },
-  { id: 'constellation', label: 'Constellation', blurb: 'Connect-the-stars with cross-shaped sparks.', unlocked: true },
-  { id: 'rainbow', label: 'Prism', blurb: 'Iridescent gradient with sprinkled sparkles.', unlocked: true },
-  { id: 'ribbon', label: 'Candy Stripe', blurb: 'Diagonal barber-pole stripes inside one bold line.', unlocked: true },
-  { id: 'pixel', label: 'Arcade Pixel', blurb: 'Chunky CRT stamps with shadow & shine.', unlocked: true },
+  {
+    id: 'constellation',
+    label: 'Constellation',
+    blurb: 'Connect-the-stars with cross-shaped sparks.',
+    unlocked: true,
+    variants: [
+      { id: 'cross', label: '4-Point' },
+      { id: 'cluster', label: 'Cluster' },
+      { id: 'dotted', label: 'Pinpricks' },
+    ],
+  },
+  {
+    id: 'rainbow',
+    label: 'Prism',
+    blurb: 'Iridescent gradient with sprinkled sparkles.',
+    unlocked: true,
+    noColorCustomization: true,
+  },
+  {
+    id: 'ribbon',
+    label: 'Candy Stripe',
+    blurb: 'Stripes inside one bold line.',
+    unlocked: true,
+    variants: [
+      { id: 'diagonal', label: 'Diagonal' },
+      { id: 'horizontal', label: 'Bands' },
+      { id: 'dots', label: 'Polka' },
+    ],
+  },
+  {
+    id: 'pixel',
+    label: 'Arcade Pixel',
+    blurb: 'Chunky CRT stamps with shadow & shine.',
+    unlocked: true,
+    variants: [
+      { id: 'medium', label: 'Standard' },
+      { id: 'large', label: 'Mega' },
+      { id: 'small', label: 'Micro' },
+    ],
+  },
   { id: 'chalk', label: 'Chalk', blurb: 'Streaked pastel with heavy dust scatter.', unlocked: true },
   { id: 'ink', label: 'Calligraphy Ink', blurb: 'Tapered brush with wet endpoint blots.', unlocked: true },
   { id: 'pencil', label: 'Graphite', blurb: 'Layered hairs over rough paper grain.', unlocked: true },
@@ -512,12 +628,14 @@ function renderPixel(
   hex: string,
   coreWidth: number,
   intensity: number,
+  variant?: string,
 ) {
   if (pts.length < 2) return;
   const segments = splitOnTeleport(pts);
   if (segments.length === 0) return;
 
-  const stamp = Math.max(6, Math.round(coreWidth * 1.05));
+  const sizeMult = variant === 'large' ? 1.55 : variant === 'small' ? 0.7 : 1.05;
+  const stamp = Math.max(4, Math.round(coreWidth * sizeMult));
   const step = stamp * 0.92;
   const hi = tintTowardWhite(hex, 0.75);
   const sh = tintTowardBlack(hex, 0.55);
@@ -560,15 +678,18 @@ function renderPixel(
  * Candy Stripe — wide stroke filled with a rotated tile pattern of two-color
  * diagonal bands. True barber-pole feel along the path.
  */
-let candyPatternCache: { hexA: string; hexB: string; canvas: HTMLCanvasElement } | null = null;
-function buildCandyPattern(hexA: string, hexB: string): HTMLCanvasElement {
-  if (
-    candyPatternCache &&
-    candyPatternCache.hexA === hexA &&
-    candyPatternCache.hexB === hexB
-  ) {
-    return candyPatternCache.canvas;
-  }
+type RibbonPattern = 'diagonal' | 'horizontal' | 'dots';
+
+const candyPatternCache: Map<string, HTMLCanvasElement> = new Map();
+
+function buildCandyPattern(
+  hexA: string,
+  hexB: string,
+  pattern: RibbonPattern,
+): HTMLCanvasElement {
+  const key = `${pattern}|${hexA}|${hexB}`;
+  const cached = candyPatternCache.get(key);
+  if (cached) return cached;
   const size = 16;
   const c = document.createElement('canvas');
   c.width = size;
@@ -577,13 +698,24 @@ function buildCandyPattern(hexA: string, hexB: string): HTMLCanvasElement {
   cctx.fillStyle = hexA;
   cctx.fillRect(0, 0, size, size);
   cctx.fillStyle = hexB;
-  // Two diagonal stripes at 45deg
-  cctx.save();
-  cctx.translate(size / 2, size / 2);
-  cctx.rotate(Math.PI / 4);
-  cctx.fillRect(-size, -size / 4, size * 2, size / 2);
-  cctx.restore();
-  candyPatternCache = { hexA, hexB, canvas: c };
+  if (pattern === 'horizontal') {
+    // Vertical bands across the tile so they read as horizontal bands along
+    // a stroke (perpendicular to its direction).
+    cctx.fillRect(0, 0, size / 2, size);
+  } else if (pattern === 'dots') {
+    // Polka dots
+    cctx.beginPath();
+    cctx.arc(size / 2, size / 2, size * 0.28, 0, Math.PI * 2);
+    cctx.fill();
+  } else {
+    // Diagonal (default) — 45deg stripe across the tile
+    cctx.save();
+    cctx.translate(size / 2, size / 2);
+    cctx.rotate(Math.PI / 4);
+    cctx.fillRect(-size, -size / 4, size * 2, size / 2);
+    cctx.restore();
+  }
+  candyPatternCache.set(key, c);
   return c;
 }
 
@@ -593,7 +725,10 @@ function renderRibbon(
   hex: string,
   coreWidth: number,
   intensity: number,
+  variant?: string,
 ) {
+  const pattern: RibbonPattern =
+    variant === 'horizontal' || variant === 'dots' ? variant : 'diagonal';
   if (pts.length < 2) return;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -615,8 +750,8 @@ function renderRibbon(
   ctx.shadowColor = rgba(hex, 0.7 * intensity);
 
   // Patterned stripe body
-  const pattern = buildCandyPattern(stripeA, stripeB);
-  const stripePattern = ctx.createPattern(pattern, 'repeat');
+  const patternCanvas = buildCandyPattern(stripeA, stripeB, pattern);
+  const stripePattern = ctx.createPattern(patternCanvas, 'repeat');
   if (stripePattern) {
     ctx.strokeStyle = stripePattern;
     ctx.globalAlpha = intensity;
@@ -774,12 +909,18 @@ function renderComet(
   hex: string,
   coreWidth: number,
   intensity: number,
+  variant?: string,
 ) {
   if (pts.length < 2) return;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   const segments = splitOnTeleport(pts);
   if (segments.length === 0) return;
+
+  // Tail falloff exponent — lower = longer visible tail
+  const falloff = variant === 'long' ? 0.85 : variant === 'compact' ? 2.4 : 1.3;
+  const headSizeMult = variant === 'compact' ? 3.2 : variant === 'long' ? 2.0 : 2.4;
+  const twinkleStep = variant === 'long' ? 1.8 : variant === 'compact' ? 4.0 : 2.5;
 
   const total = pts.length;
   const head = pts[pts.length - 1];
@@ -794,7 +935,7 @@ function renderComet(
       const a = seg[i - 1];
       const b = seg[i];
       const t = runningIdx / Math.max(1, total - 1);
-      const alpha = Math.pow(t, 1.3) * intensity;
+      const alpha = Math.pow(t, falloff) * intensity;
       ctx.strokeStyle = rgba(hex, 0.5 * alpha);
       ctx.lineWidth = coreWidth * (0.7 + 1.6 * t);
       ctx.beginPath();
@@ -825,7 +966,7 @@ function renderComet(
 
   // Twinkling stardust along the tail
   ctx.shadowBlur = 0;
-  walkPath(segments, coreWidth * 2.5, (x, y, _tx, _ty, idx) => {
+  walkPath(segments, coreWidth * twinkleStep, (x, y, _tx, _ty, idx) => {
     const t = idx / Math.max(1, total / 6);
     const tt = Math.min(1, t);
     if (hash01(idx * 5.3) > tt * 0.7 + 0.2) return;
@@ -839,7 +980,7 @@ function renderComet(
   });
 
   // Hot head — radial halo
-  const headR = coreWidth * 2.4;
+  const headR = coreWidth * headSizeMult;
   const headGrad = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, headR);
   headGrad.addColorStop(0, rgba(tintTowardWhite(hex, 0.95), intensity));
   headGrad.addColorStop(0.45, rgba(hex, 0.85 * intensity));
@@ -853,7 +994,7 @@ function renderComet(
   ctx.shadowBlur = 14;
   ctx.shadowColor = rgba(tintTowardWhite(hex, 0.9), intensity);
   ctx.fillStyle = rgba(tintTowardWhite(hex, 0.95), intensity);
-  drawFourPointStar(ctx, head.x, head.y, coreWidth * 1.4, 0.22);
+  drawFourPointStar(ctx, head.x, head.y, coreWidth * (variant === 'compact' ? 1.7 : 1.4), 0.22);
   ctx.shadowBlur = 0;
 }
 
@@ -928,6 +1069,7 @@ function renderConstellation(
   hex: string,
   coreWidth: number,
   intensity: number,
+  variant?: string,
 ) {
   if (pts.length < 2) return;
   ctx.lineCap = 'round';
@@ -936,18 +1078,40 @@ function renderConstellation(
   if (segments.length === 0) return;
 
   const star = tintTowardWhite(hex, 0.85);
+  const mode: 'cross' | 'cluster' | 'dotted' =
+    variant === 'cluster' || variant === 'dotted' ? variant : 'cross';
 
-  // Dotted connector line
+  // Dotted connector line (lighter for the 'dotted' variant)
   ctx.setLineDash([2, 4]);
-  ctx.strokeStyle = rgba(tintTowardWhite(hex, 0.5), 0.55 * intensity);
+  ctx.strokeStyle = rgba(
+    tintTowardWhite(hex, 0.5),
+    (mode === 'dotted' ? 0.4 : 0.55) * intensity,
+  );
   ctx.lineWidth = Math.max(1, coreWidth * 0.22);
   tracePath(ctx, segments);
   ctx.stroke();
   ctx.setLineDash([]);
 
   // Star nodes at sampled intervals
-  const stepDist = Math.max(coreWidth * 2.2, 14);
-  walkPath(segments, stepDist, (x, y, _tx, _ty, idx) => {
+  const stepDist =
+    mode === 'dotted'
+      ? Math.max(coreWidth * 1.4, 8)
+      : Math.max(coreWidth * 2.2, 14);
+
+  walkPath(segments, stepDist, (x, y, tx, ty, idx) => {
+    if (mode === 'dotted') {
+      // Pinpricks — small white dots only
+      const r = coreWidth * (0.22 + hash01(idx * 13.7) * 0.18);
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = rgba(star, intensity);
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      return;
+    }
+
     const r = coreWidth * (0.7 + hash01(idx * 13.7) * 0.45);
 
     // Halo
@@ -960,18 +1124,36 @@ function renderConstellation(
     ctx.arc(x, y, r * 2.8, 0, Math.PI * 2);
     ctx.fill();
 
-    // Star shape
+    // Main star
     ctx.shadowBlur = 8;
     ctx.shadowColor = rgba(star, intensity);
     ctx.fillStyle = rgba(star, intensity);
     drawFourPointStar(ctx, x, y, r, 0.2);
     ctx.shadowBlur = 0;
 
-    // Bright core dot
+    // Core dot
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.arc(x, y, r * 0.32, 0, Math.PI * 2);
     ctx.fill();
+
+    if (mode === 'cluster') {
+      // Three small satellite stars orbiting the main one
+      const nx = -ty;
+      const ny = tx;
+      for (let k = 0; k < 3; k++) {
+        const angle = (k / 3) * Math.PI * 2 + idx * 0.4;
+        const orbit = r * 1.9;
+        const sx = x + Math.cos(angle) * orbit + nx * 0;
+        const sy = y + Math.sin(angle) * orbit + ny * 0;
+        const sr = r * (0.32 + hash01(idx * 7 + k * 3) * 0.18);
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = rgba(star, intensity);
+        ctx.fillStyle = rgba(star, intensity);
+        drawFourPointStar(ctx, sx, sy, sr, 0.22);
+      }
+      ctx.shadowBlur = 0;
+    }
   });
 }
 
@@ -985,6 +1167,7 @@ function renderLaser(
   hex: string,
   coreWidth: number,
   intensity: number,
+  variant?: string,
 ) {
   if (pts.length < 2) return;
   ctx.lineCap = 'round';
@@ -992,22 +1175,31 @@ function renderLaser(
   const segments = splitOnTeleport(pts);
   if (segments.length === 0) return;
 
+  const mode: 'classic' | 'plasma' | 'razor' =
+    variant === 'plasma' || variant === 'razor' ? variant : 'classic';
+
   const tinted = tintTowardWhite(hex, 0.4);
   const hot = tintTowardWhite(hex, 0.85);
 
+  // Width multipliers by variant
+  const haloMult = mode === 'plasma' ? 5.4 : mode === 'razor' ? 2.8 : 4.2;
+  const midMult = mode === 'plasma' ? 2.6 : mode === 'razor' ? 1.2 : 2.0;
+  const bandMult = mode === 'plasma' ? 1.2 : mode === 'razor' ? 0.55 : 0.95;
+  const coreMult = mode === 'razor' ? 0.18 : 0.28;
+
   // Wide diffuse outer glow
-  ctx.shadowBlur = 36;
+  ctx.shadowBlur = mode === 'plasma' ? 48 : 36;
   ctx.shadowColor = rgba(hex, intensity);
-  ctx.strokeStyle = rgba(hex, 0.18 * intensity);
-  ctx.lineWidth = coreWidth * 4.2;
+  ctx.strokeStyle = rgba(hex, (mode === 'plasma' ? 0.24 : 0.18) * intensity);
+  ctx.lineWidth = coreWidth * haloMult;
   tracePath(ctx, segments);
   ctx.stroke();
 
   // Mid halo
-  ctx.shadowBlur = 18;
+  ctx.shadowBlur = mode === 'plasma' ? 24 : 18;
   ctx.shadowColor = rgba(hex, intensity);
   ctx.strokeStyle = rgba(hex, 0.6 * intensity);
-  ctx.lineWidth = coreWidth * 2.0;
+  ctx.lineWidth = coreWidth * midMult;
   tracePath(ctx, segments);
   ctx.stroke();
 
@@ -1015,7 +1207,7 @@ function renderLaser(
   ctx.shadowBlur = 8;
   ctx.shadowColor = rgba(tinted, intensity);
   ctx.strokeStyle = rgba(tinted, 0.95 * intensity);
-  ctx.lineWidth = coreWidth * 0.95;
+  ctx.lineWidth = coreWidth * bandMult;
   tracePath(ctx, segments);
   ctx.stroke();
 
@@ -1023,26 +1215,30 @@ function renderLaser(
   ctx.shadowBlur = 6;
   ctx.shadowColor = rgba(hot, intensity);
   ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = Math.max(1.2, coreWidth * 0.28);
+  ctx.lineWidth = Math.max(1.0, coreWidth * coreMult);
   tracePath(ctx, segments);
   ctx.stroke();
   ctx.shadowBlur = 0;
 
-  // Electrical sparks — short perpendicular jolts at random anchor points
+  // Razor variant skips sparks for the clean cut look
+  if (mode === 'razor') return;
+
+  // Electrical sparks — denser & longer for plasma, standard for classic
+  const sparkStep = mode === 'plasma' ? coreWidth * 2.2 : coreWidth * 3.5;
+  const sparkLenMult = mode === 'plasma' ? 1.6 : 1.0;
   ctx.strokeStyle = rgba(hot, intensity);
-  ctx.lineWidth = 1.2;
-  walkPath(segments, coreWidth * 3.5, (x, y, tx, ty, idx) => {
-    if (hash01(idx * 7.31) > 0.5) return;
+  ctx.lineWidth = mode === 'plasma' ? 1.6 : 1.2;
+  walkPath(segments, sparkStep, (x, y, tx, ty, idx) => {
+    if (hash01(idx * 7.31) > (mode === 'plasma' ? 0.65 : 0.5)) return;
     const nx = -ty;
     const ny = tx;
-    const len = coreWidth * (0.7 + hash01(idx * 13) * 0.9);
+    const len = coreWidth * (0.7 + hash01(idx * 13) * 0.9) * sparkLenMult;
     const dir = hash01(idx * 23) > 0.5 ? 1 : -1;
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x + nx * len * dir, y + ny * len * dir);
     ctx.stroke();
 
-    // Tiny spark dot at the tip
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.arc(x + nx * len * dir, y + ny * len * dir, 1.1, 0, Math.PI * 2);
@@ -1062,6 +1258,7 @@ export function renderPaintStroke(
   coreWidth: number,
   intensity: number,
   styleId: PaintStyleId,
+  variant?: string,
 ) {
   ctx.save();
   switch (styleId) {
@@ -1075,25 +1272,25 @@ export function renderPaintStroke(
       renderChalk(ctx, pts, color, coreWidth, intensity);
       break;
     case 'pixel':
-      renderPixel(ctx, pts, color, coreWidth, intensity);
+      renderPixel(ctx, pts, color, coreWidth, intensity, variant);
       break;
     case 'ribbon':
-      renderRibbon(ctx, pts, color, coreWidth, intensity);
+      renderRibbon(ctx, pts, color, coreWidth, intensity, variant);
       break;
     case 'rainbow':
       renderRainbow(ctx, pts, color, coreWidth, intensity);
       break;
     case 'comet':
-      renderComet(ctx, pts, color, coreWidth, intensity);
+      renderComet(ctx, pts, color, coreWidth, intensity, variant);
       break;
     case 'nebula':
       renderNebula(ctx, pts, color, coreWidth, intensity);
       break;
     case 'constellation':
-      renderConstellation(ctx, pts, color, coreWidth, intensity);
+      renderConstellation(ctx, pts, color, coreWidth, intensity, variant);
       break;
     case 'laser':
-      renderLaser(ctx, pts, color, coreWidth, intensity);
+      renderLaser(ctx, pts, color, coreWidth, intensity, variant);
       break;
     case 'neon':
     default:

@@ -10,7 +10,7 @@ import { sfx } from '../game/audio';
 import { findWorstSegment, type WorstSegment } from '../game/analyze';
 import { scaleNormalizedToCanvas } from '../game/pathUtils';
 import { accentFor, type ChallengeMeta } from '../game/challenges';
-import type { PaintStyleId } from '../game/paintStyles';
+import { resolvePaintColor, type PaintStyleId } from '../game/paintStyles';
 
 export interface SubmitMeta {
   isNewBest: boolean;
@@ -44,6 +44,10 @@ interface Props {
     targetUnitPath: Point[],
   ) => AttemptResult;
   paintStyleId: PaintStyleId;
+  /** Color swatch id ('accent' | 'cyan' | hex…). 'accent' follows the chapter accent. */
+  paintColorId: string;
+  /** Variant id for styles that support variants. */
+  paintVariant?: string;
 }
 
 type Phase = 'memorize' | 'armed' | 'running' | 'result';
@@ -67,6 +71,8 @@ export default function ChallengeScreen({
   onDismissIntro,
   scoreAttempt,
   paintStyleId,
+  paintColorId,
+  paintVariant,
 }: Props) {
   const canvasRef = useRef<DrawingCanvasHandle | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -402,9 +408,10 @@ export default function ChallengeScreen({
           targetUnitPath={targetUnitPath}
           guideOpacity={computedGuideOpacity}
           closedShape={closedShape}
-          accentColor={accent.stroke}
+          accentColor={resolvePaintColor(paintColorId, accent.stroke)}
           accentSoft={accent.soft}
           paintStyleId={paintStyleId}
+          paintVariant={paintVariant}
           assistEnabled={assistEnabled}
           assistStrength={assistStrength}
           resultMode={phase === 'result'}

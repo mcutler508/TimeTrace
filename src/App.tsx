@@ -27,6 +27,7 @@ import { gradeFor } from './game/scoring';
 import type { AttemptResult, Point, SavedGameState } from './game/types';
 import {
   DEFAULT_PAINT_STYLE,
+  defaultVariantFor,
   isPaintStyleId,
   type PaintStyleId,
 } from './game/paintStyles';
@@ -235,6 +236,8 @@ export default function App() {
       attemptCountByChallenge: {},
       currentStreak: 0,
       paintStyleId: prev.paintStyleId,
+      paintColorByStyle: prev.paintColorByStyle,
+      paintVariantByStyle: prev.paintVariantByStyle,
     }));
     setIntroDismissed(true);
     setView('home');
@@ -262,6 +265,20 @@ export default function App() {
     setState((prev) => ({ ...prev, paintStyleId: id }));
   }
 
+  function handleSelectPaintColor(styleId: PaintStyleId, colorId: string) {
+    setState((prev) => ({
+      ...prev,
+      paintColorByStyle: { ...prev.paintColorByStyle, [styleId]: colorId },
+    }));
+  }
+
+  function handleSelectPaintVariant(styleId: PaintStyleId, variantId: string) {
+    setState((prev) => ({
+      ...prev,
+      paintVariantByStyle: { ...prev.paintVariantByStyle, [styleId]: variantId },
+    }));
+  }
+
   function handlePickChallenge(id: string) {
     const idx = findChallengeIndex(id);
     if (idx < 0) return;
@@ -282,6 +299,10 @@ export default function App() {
   const activePaintStyle: PaintStyleId = isPaintStyleId(state.paintStyleId)
     ? state.paintStyleId
     : DEFAULT_PAINT_STYLE;
+  const activePaintColorId =
+    state.paintColorByStyle[activePaintStyle] ?? 'accent';
+  const activePaintVariant =
+    state.paintVariantByStyle[activePaintStyle] ?? defaultVariantFor(activePaintStyle);
 
   const wrapperClass = 'w-full max-w-md mx-auto min-h-screen flex flex-col';
   const wrapperStyle = { minHeight: '100dvh' } as const;
@@ -314,11 +335,15 @@ export default function App() {
         playerName={state.playerName}
         focusChallengeId={currentChallenge.id}
         paintStyleId={activePaintStyle}
+        paintColorByStyle={state.paintColorByStyle}
+        paintVariantByStyle={state.paintVariantByStyle}
         onPickChallenge={handlePickChallenge}
         onSignOut={handleSignOut}
         onOpenLeaderboard={handleOpenLeaderboard}
         onEditName={handleEditName}
         onSelectPaintStyle={handleSelectPaintStyle}
+        onSelectPaintColor={handleSelectPaintColor}
+        onSelectPaintVariant={handleSelectPaintVariant}
       />
     );
   } else {
@@ -340,6 +365,8 @@ export default function App() {
         onHome={canGoHome ? handleHome : undefined}
         scoreAttempt={scoreAttempt}
         paintStyleId={activePaintStyle}
+        paintColorId={activePaintColorId}
+        paintVariant={activePaintVariant}
       />
     );
   }

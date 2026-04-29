@@ -90,4 +90,8 @@ export interface SavedGameState {
   attemptCountByChallenge: Record<string, number>;
   currentStreak: number;
   paintStyleId: string;
+  /** Map of styleId → color swatch id ('accent', 'cyan', etc). Missing entries default to 'accent'. */
+  paintColorByStyle: Record<string, string>;
+  /** Map of styleId → variant id (e.g. 'diagonal'). Missing entries use the style's default variant. */
+  paintVariantByStyle: Record<string, string>;
 }

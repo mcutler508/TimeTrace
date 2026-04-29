@@ -31,11 +31,15 @@ interface Props {
   /** Challenge to scroll into view on first mount (the level the player just exited). */
   focusChallengeId?: string | null;
   paintStyleId: PaintStyleId;
+  paintColorByStyle: Record<string, string>;
+  paintVariantByStyle: Record<string, string>;
   onPickChallenge: (challengeId: string) => void;
   onSignOut?: () => void;
   onOpenLeaderboard?: () => void;
   onEditName?: (name: string) => void;
   onSelectPaintStyle: (id: PaintStyleId) => void;
+  onSelectPaintColor: (id: PaintStyleId, colorId: string) => void;
+  onSelectPaintVariant: (id: PaintStyleId, variantId: string) => void;
 }
 
 export default function HomeScreen({
@@ -45,11 +49,15 @@ export default function HomeScreen({
   playerName,
   focusChallengeId,
   paintStyleId,
+  paintColorByStyle,
+  paintVariantByStyle,
   onPickChallenge,
   onSignOut,
   onOpenLeaderboard,
   onEditName,
   onSelectPaintStyle,
+  onSelectPaintColor,
+  onSelectPaintVariant,
 }: Props) {
   const { next, needed } = pointsToNextUnlock(totalPoints);
   const hapticsSupported = isHapticsSupported();
@@ -229,7 +237,11 @@ export default function HomeScreen({
 
       <PaintStylePicker
         selectedId={paintStyleId}
+        paintColorByStyle={paintColorByStyle}
+        paintVariantByStyle={paintVariantByStyle}
         onSelect={onSelectPaintStyle}
+        onSelectColor={onSelectPaintColor}
+        onSelectVariant={onSelectPaintVariant}
       />
 
       {CHAPTERS.map((chap) => (

@@ -37,6 +37,7 @@ interface Props {
   worstSegment?: { startIdx: number; endIdx: number } | null;
   perfectBurst?: boolean;
   paintStyleId?: PaintStyleId;
+  paintVariant?: string;
   onStrokeStart?: () => void;
   onStrokeEnd?: (path: Point[]) => void;
   onPointAdded?: (count: number) => void;
@@ -62,6 +63,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     worstSegment = null,
     perfectBurst = false,
     paintStyleId = DEFAULT_PAINT_STYLE,
+    paintVariant,
     onStrokeStart,
     onStrokeEnd,
     onPortalPause,
@@ -707,7 +709,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
         drawRainbowStickerPath(ctx, playerCanvas, 9);
       } else {
         const baseColor = isElite ? '#ffe83d' : accentColor;
-        renderPaintStroke(ctx, playerCanvas, baseColor, 8, 1, paintStyleId);
+        renderPaintStroke(ctx, playerCanvas, baseColor, 8, 1, paintStyleId, paintVariant);
       }
 
       if (
@@ -727,7 +729,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
 
       if (pathRef.current.length > 1) {
         const intensity = onTrackRef.current ? 1.18 : 1.0;
-        renderPaintStroke(ctx, pathRef.current, accentColor, 9, intensity, paintStyleId);
+        renderPaintStroke(ctx, pathRef.current, accentColor, 9, intensity, paintStyleId, paintVariant);
       }
     }
 

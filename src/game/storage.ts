@@ -27,6 +27,8 @@ function makeDefaultState(): SavedGameState {
     attemptCountByChallenge: {},
     currentStreak: 0,
     paintStyleId: DEFAULT_PAINT_STYLE,
+    paintColorByStyle: {},
+    paintVariantByStyle: {},
   };
 }
 
@@ -41,6 +43,12 @@ export function loadState(): SavedGameState {
     if (!merged.playerId) merged.playerId = generateUuid();
     if (typeof merged.playerName !== 'string') merged.playerName = '';
     if (!isPaintStyleId(merged.paintStyleId)) merged.paintStyleId = DEFAULT_PAINT_STYLE;
+    if (!merged.paintColorByStyle || typeof merged.paintColorByStyle !== 'object') {
+      merged.paintColorByStyle = {};
+    }
+    if (!merged.paintVariantByStyle || typeof merged.paintVariantByStyle !== 'object') {
+      merged.paintVariantByStyle = {};
+    }
     return merged;
   } catch {
     return makeDefaultState();

@@ -307,8 +307,8 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'Twin Loops',
     chapter: 3,
     segments: [
-      { shape: 'circle', center: { x: 0.27, y: 0.5 }, scale: 0.42 },
-      { shape: 'circle', center: { x: 0.73, y: 0.5 }, scale: 0.42 },
+      { shape: 'circle', center: { x: 0.27, y: 0.5 }, scale: 0.46 },
+      { shape: 'circle', center: { x: 0.73, y: 0.5 }, scale: 0.46 },
     ],
   },
   {
@@ -321,8 +321,8 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'Box & Ball',
     chapter: 3,
     segments: [
-      { shape: 'circle', center: { x: 0.27, y: 0.5 }, scale: 0.42 },
-      { shape: 'square', center: { x: 0.73, y: 0.5 }, scale: 0.4 },
+      { shape: 'circle', center: { x: 0.27, y: 0.5 }, scale: 0.46 },
+      { shape: 'square', center: { x: 0.73, y: 0.5 }, scale: 0.44 },
     ],
   },
   {
@@ -335,8 +335,8 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'Trail Blaze',
     chapter: 3,
     segments: [
-      { shape: 'triangle', center: { x: 0.28, y: 0.3 }, scale: 0.4 },
-      { shape: 'heart', center: { x: 0.72, y: 0.7 }, scale: 0.4 },
+      { shape: 'triangle', center: { x: 0.27, y: 0.28 }, scale: 0.46 },
+      { shape: 'heart', center: { x: 0.73, y: 0.72 }, scale: 0.46 },
     ],
   },
   {
@@ -349,8 +349,8 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'Star Bright',
     chapter: 3,
     segments: [
-      { shape: 'star', center: { x: 0.5, y: 0.28 }, scale: 0.4 },
-      { shape: 'hexagon', center: { x: 0.5, y: 0.72 }, scale: 0.4 },
+      { shape: 'star', center: { x: 0.5, y: 0.26 }, scale: 0.46 },
+      { shape: 'hexagon', center: { x: 0.5, y: 0.74 }, scale: 0.46 },
     ],
   },
   {
@@ -363,8 +363,8 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'Lightning Coil',
     chapter: 3,
     segments: [
-      { shape: 'bolt', center: { x: 0.27, y: 0.5 }, scale: 0.42 },
-      { shape: 'spiral', center: { x: 0.73, y: 0.5 }, scale: 0.42 },
+      { shape: 'bolt', center: { x: 0.27, y: 0.5 }, scale: 0.46 },
+      { shape: 'spiral', center: { x: 0.73, y: 0.5 }, scale: 0.46 },
     ],
   },
   {
@@ -377,9 +377,9 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'First Trio',
     chapter: 3,
     segments: [
-      { shape: 'circle', center: { x: 0.18, y: 0.5 }, scale: 0.3 },
-      { shape: 'square', center: { x: 0.5, y: 0.5 }, scale: 0.3 },
-      { shape: 'triangle', center: { x: 0.82, y: 0.5 }, scale: 0.3 },
+      { shape: 'circle', center: { x: 0.18, y: 0.5 }, scale: 0.32 },
+      { shape: 'square', center: { x: 0.5, y: 0.5 }, scale: 0.32 },
+      { shape: 'triangle', center: { x: 0.82, y: 0.5 }, scale: 0.32 },
     ],
   },
   {
@@ -392,9 +392,9 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'Stargaze',
     chapter: 3,
     segments: [
-      { shape: 'heart', center: { x: 0.5, y: 0.22 }, scale: 0.34 },
-      { shape: 'star', center: { x: 0.22, y: 0.78 }, scale: 0.34 },
-      { shape: 'infinity', center: { x: 0.78, y: 0.78 }, scale: 0.34 },
+      { shape: 'heart', center: { x: 0.5, y: 0.24 }, scale: 0.42 },
+      { shape: 'star', center: { x: 0.24, y: 0.76 }, scale: 0.42 },
+      { shape: 'infinity', center: { x: 0.76, y: 0.76 }, scale: 0.42 },
     ],
   },
   {
@@ -407,9 +407,9 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'Zigzag',
     chapter: 3,
     segments: [
-      { shape: 'bolt', center: { x: 0.22, y: 0.3 }, scale: 0.3 },
-      { shape: 'circle', center: { x: 0.5, y: 0.72 }, scale: 0.3 },
-      { shape: 'hexagon', center: { x: 0.78, y: 0.3 }, scale: 0.3 },
+      { shape: 'bolt', center: { x: 0.22, y: 0.27 }, scale: 0.38 },
+      { shape: 'circle', center: { x: 0.5, y: 0.73 }, scale: 0.38 },
+      { shape: 'hexagon', center: { x: 0.78, y: 0.27 }, scale: 0.38 },
     ],
   },
   {
@@ -422,9 +422,9 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'Knot Work',
     chapter: 3,
     segments: [
-      { shape: 'crescent', center: { x: 0.22, y: 0.5 }, scale: 0.34 },
-      { shape: 'doubleLoop', center: { x: 0.5, y: 0.5 }, scale: 0.32 },
-      { shape: 'sineWave', center: { x: 0.78, y: 0.5 }, scale: 0.34 },
+      { shape: 'crescent', center: { x: 0.18, y: 0.5 }, scale: 0.34 },
+      { shape: 'doubleLoop', center: { x: 0.5, y: 0.5 }, scale: 0.34 },
+      { shape: 'sineWave', center: { x: 0.82, y: 0.5 }, scale: 0.34 },
     ],
   },
   {
@@ -437,9 +437,9 @@ export const CHALLENGES: ChallengeMeta[] = [
     title: 'Constellation Prime',
     chapter: 3,
     segments: [
-      { shape: 'pretzel', center: { x: 0.5, y: 0.25 }, scale: 0.34 },
-      { shape: 'trefoil', center: { x: 0.22, y: 0.75 }, scale: 0.32 },
-      { shape: 'bolt', center: { x: 0.78, y: 0.75 }, scale: 0.32 },
+      { shape: 'pretzel', center: { x: 0.5, y: 0.24 }, scale: 0.42 },
+      { shape: 'trefoil', center: { x: 0.24, y: 0.76 }, scale: 0.40 },
+      { shape: 'bolt', center: { x: 0.76, y: 0.76 }, scale: 0.40 },
     ],
   },
 

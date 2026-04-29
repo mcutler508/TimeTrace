@@ -282,11 +282,13 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       const eTangent = { x: entryPoint.x - ePrev.x, y: entryPoint.y - ePrev.y };
       const xTangent = { x: xNext.x - exitPoint.x, y: xNext.y - exitPoint.y };
       result.push({
-        // IN slash is ~30% smaller than the OUT marker — players have to aim
-        // through it deliberately, and arm-on-approach feedback (see
-        // computeApproachState + drawPortalSlash) makes the engagement obvious.
-        entry: makeSlashAt(entryPoint, eTangent, 0.09),
-        exit: makeSlashAt(exitPoint, xTangent, 0.13),
+        // IN slash is small + dim-until-approached so players have to aim
+        // through it deliberately. arm-on-approach feedback (see
+        // computeApproachState + drawPortalSlash) makes the engagement
+        // obvious. OUT is left larger because it's a placement target after
+        // the warp, not a hazard to avoid.
+        entry: makeSlashAt(entryPoint, eTangent, 0.07),
+        exit: makeSlashAt(exitPoint, xTangent, 0.12),
       });
     }
     return result;

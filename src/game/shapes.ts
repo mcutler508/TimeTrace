@@ -462,15 +462,25 @@ export function generateMultiShapePath(segments: ShapeSegment[]): Point[] {
     const rotation = autoRotation(segments[s], prev, next);
     let transformed = transformSegmentPath(segments[s], rotation);
     const isInterior = s > 0 && s < segments.length - 1;
-    if (isInterior && isClosedShape(segments[s].shape) && transformed.length > 8) {
-      // Symmetric trim: drop equal slices from start and end so the seam
-      // straddles the natural closure point. This keeps OUT and IN both at
-      // positions on the curve (not at e.g. a star tip where the trim would
-      // otherwise clip mid-spike).
-      const totalCut = Math.floor(transformed.length * PORTAL_SEAM_TRIM);
-      const cutStart = Math.floor(totalCut / 2);
-      const cutEnd = totalCut - cutStart;
-      transformed = transformed.slice(cutStart, transformed.length - cutEnd);
+    if (isInterior && transformed.length > 8) {
+      // Only trim when the shape is *geometrically* closed — i.e. its first
+      // and last sample are essentially the same point. Some shapes flagged
+      // closed by the gameplay logic (doubleLoop, squareInCircle, etc.) have
+      // paths that start in one region and end in another, so trimming them
+      // would lift portal slashes off the curve into empty space.
+      const start = transformed[0];
+      const end = transformed[transformed.length - 1];
+      const closureGap = Math.hypot(start.x - end.x, start.y - end.y);
+      const trulyClosed = closureGap < 0.04;
+      if (trulyClosed) {
+        // Symmetric trim: drop equal slices from start and end so the seam
+        // straddles the natural closure point. Keeps OUT and IN at smooth
+        // positions on the curve (e.g. doesn't clip mid-spike on a star).
+        const totalCut = Math.floor(transformed.length * PORTAL_SEAM_TRIM);
+        const cutStart = Math.floor(totalCut / 2);
+        const cutEnd = totalCut - cutStart;
+        transformed = transformed.slice(cutStart, transformed.length - cutEnd);
+      }
     }
     if (s > 0 && result.length > 0) {
       const last = result[result.length - 1];

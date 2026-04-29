@@ -9,6 +9,7 @@ interface Props {
   unlockedTitle: string | null;
   onRetry: () => void;
   onNext: () => void;
+  onHome?: () => void;
 }
 
 const GRADE_TEXT: Record<AttemptResult['grade'], string> = {
@@ -42,6 +43,7 @@ export default function InlineResultOverlay({
   unlockedTitle,
   onRetry,
   onNext,
+  onHome,
 }: Props) {
   const deltaSign = result.timeDelta >= 0 ? '+' : '−';
   const deltaAbs = Math.abs(result.timeDelta).toFixed(2);
@@ -126,27 +128,41 @@ export default function InlineResultOverlay({
           </span>
           <span className="text-splat-yellow text-glow-gold">TIMING {result.timingScore}</span>
         </div>
-        <div className="grid grid-cols-[2fr_1fr] gap-3">
-          <button
-            onClick={() => {
-              haptics.micro();
-              sfx.tap();
-              onRetry();
-            }}
-            className="btn-sticker py-3.5 text-poster text-base tracking-[0.18em] bg-splat-yellow text-splat-black"
-          >
-            RETRY
-          </button>
-          <button
-            onClick={() => {
-              haptics.micro();
-              sfx.tap();
-              onNext();
-            }}
-            className="btn-sticker py-3.5 text-poster text-base tracking-[0.18em] bg-splat-cyan text-splat-black"
-          >
-            NEXT
-          </button>
+        <div className="flex flex-col gap-2">
+          {onHome && (
+            <button
+              onClick={() => {
+                haptics.micro();
+                sfx.tap();
+                onHome();
+              }}
+              className="btn-sticker py-2 text-poster text-[11px] tracking-[0.22em] bg-splat-paper text-splat-black"
+            >
+              ← HOME
+            </button>
+          )}
+          <div className="grid grid-cols-[2fr_1fr] gap-3">
+            <button
+              onClick={() => {
+                haptics.micro();
+                sfx.tap();
+                onRetry();
+              }}
+              className="btn-sticker py-3.5 text-poster text-base tracking-[0.18em] bg-splat-yellow text-splat-black"
+            >
+              RETRY
+            </button>
+            <button
+              onClick={() => {
+                haptics.micro();
+                sfx.tap();
+                onNext();
+              }}
+              className="btn-sticker py-3.5 text-poster text-base tracking-[0.18em] bg-splat-cyan text-splat-black"
+            >
+              NEXT
+            </button>
+          </div>
         </div>
       </div>
     </div>

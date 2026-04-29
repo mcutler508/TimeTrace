@@ -484,6 +484,7 @@ export default function ChallengeScreen({
             unlockedTitle={submitMeta.unlockedTitle}
             onRetry={handleRetry}
             onNext={() => onNext?.()}
+            onHome={onHome}
           />
         )}
       </div>

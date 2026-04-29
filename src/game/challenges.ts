@@ -192,11 +192,11 @@ export const CHALLENGES: ChallengeMeta[] = [
     chapter: 1,
   },
 
-  // ---------- Chapter 2 — Portals ----------
+  // ---------- Chapter 2 — Tangled (no portals; complex single shapes) ----------
   {
     id: 'doubleloop-8',
     shape: 'doubleLoop',
-    targetTime: 8.0,
+    targetTime: 5.5,
     guideOpacity: 0.32,
     difficulty: 'medium',
     unlockThreshold: 660,
@@ -206,7 +206,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'sine-8',
     shape: 'sineWave',
-    targetTime: 8.5,
+    targetTime: 6.0,
     guideOpacity: 0.32,
     difficulty: 'medium',
     unlockThreshold: 720,
@@ -216,7 +216,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'crescent-9',
     shape: 'crescent',
-    targetTime: 9.0,
+    targetTime: 6.5,
     guideOpacity: 0.3,
     difficulty: 'medium',
     unlockThreshold: 800,
@@ -226,7 +226,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'cube-10',
     shape: 'cube',
-    targetTime: 10.0,
+    targetTime: 7.0,
     guideOpacity: 0.3,
     difficulty: 'hard',
     unlockThreshold: 890,
@@ -236,7 +236,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'sqcircle-10',
     shape: 'squareInCircle',
-    targetTime: 10.5,
+    targetTime: 7.5,
     guideOpacity: 0.3,
     difficulty: 'hard',
     unlockThreshold: 990,
@@ -246,7 +246,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'trefoil-11',
     shape: 'trefoil',
-    targetTime: 11.0,
+    targetTime: 8.0,
     guideOpacity: 0.3,
     difficulty: 'hard',
     unlockThreshold: 1100,
@@ -256,7 +256,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'maple-12',
     shape: 'mapleLeaf',
-    targetTime: 12.0,
+    targetTime: 8.5,
     guideOpacity: 0.3,
     difficulty: 'hard',
     unlockThreshold: 1220,
@@ -276,7 +276,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'pretzel-13',
     shape: 'pretzel',
-    targetTime: 13.0,
+    targetTime: 9.0,
     guideOpacity: 0.3,
     difficulty: 'hard',
     unlockThreshold: 1490,
@@ -286,7 +286,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'pyramid-14',
     shape: 'pyramidBolt',
-    targetTime: 14.0,
+    targetTime: 9.5,
     guideOpacity: 0.32,
     difficulty: 'hard',
     unlockThreshold: 1640,
@@ -449,7 +449,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'sprint-circle-c4',
     shape: 'circle',
-    targetTime: 1.5,
+    targetTime: 0.5,
     guideOpacity: 0.45,
     difficulty: 'hard',
     unlockThreshold: 2240,

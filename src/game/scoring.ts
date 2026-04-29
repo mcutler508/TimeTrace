@@ -142,9 +142,15 @@ export function scoreShape(
         }, [])
       : playerPath.map((p) => ({ x: p.x, y: p.y, t: p.t }));
 
+  // Both paths must live in the same coordinate space for the distance metric
+  // to be meaningful. The target was generated with a visual padding (~6%) so
+  // it could be drawn inside a padded canvas; strip that here so a flawless
+  // trace can actually hit 0 distance instead of being capped by the padding
+  // offset.
   const playerNorm = normalizeToUnit(flatPath);
+  const targetNorm = normalizeToUnit(targetUnitPath);
   const playerSampled = resamplePath(playerNorm, RESAMPLE_N);
-  const targetSampled = resamplePath(targetUnitPath, RESAMPLE_N);
+  const targetSampled = resamplePath(targetNorm, RESAMPLE_N);
 
   const closed = isClosedShape(shape);
   let avgDist = 0;

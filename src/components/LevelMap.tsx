@@ -294,10 +294,7 @@ export default function LevelMap({
     <div className="mb-7">
       {gateBanner}
 
-      <div
-        className="relative w-full"
-        style={{ height: totalHeight, contain: 'layout paint style' }}
-      >
+      <div className="relative w-full" style={{ height: totalHeight }}>
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none"
           viewBox={`0 0 100 ${totalHeight}`}

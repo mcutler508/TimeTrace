@@ -96,10 +96,15 @@ export default function PortalTutorial({ show, onDismiss }: Props) {
                 IN
               </text>
             </g>
-            {/* Armed OUT — landing ring + slash */}
+            {/* Armed OUT — solid boundary ring (the actual landing area) + ambient outer ring */}
             <g transform="translate(150 54)">
-              <circle cx="0" cy="0" r="22" fill="rgba(255, 61, 164, 0.10)" stroke="rgba(255, 61, 164, 0.55)" strokeWidth="1.4" />
-              <circle cx="0" cy="0" r="16" fill="none" stroke="rgba(255, 61, 164, 0.7)" strokeWidth="1.2" />
+              {/* Faint ambient ring sitting outside the boundary */}
+              <circle cx="0" cy="0" r="22" fill="none" stroke="rgba(255, 61, 164, 0.32)" strokeWidth="1.2" strokeDasharray="2 3" />
+              {/* Soft inner fill for the landing area */}
+              <circle cx="0" cy="0" r="16" fill="rgba(255, 61, 164, 0.12)" />
+              {/* Solid boundary: what you see is what you can hit */}
+              <circle cx="0" cy="0" r="16" fill="none" stroke="#ff3da4" strokeWidth="2" />
+              <circle cx="0" cy="0" r="16" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="0.7" />
               <g transform="rotate(-28)">
                 <line x1="-15" y1="0" x2="15" y2="0" stroke="#ff3da4" strokeWidth="6" strokeLinecap="round" />
                 <line x1="-15" y1="0" x2="15" y2="0" stroke="rgba(255,255,255,0.95)" strokeWidth="1.2" />

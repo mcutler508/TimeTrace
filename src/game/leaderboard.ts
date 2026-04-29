@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { hashPasscode, normalizeHandle } from './auth';
+import { containsProfanity, hashPasscode, normalizeHandle } from './auth';
 
 export interface LeaderboardEntry {
   id: string;
@@ -21,6 +21,7 @@ export interface SubmitScorePayload {
 export type SignUpError =
   | 'name-taken'
   | 'invalid-name'
+  | 'inappropriate-name'
   | 'invalid-passcode'
   | 'unconfigured'
   | 'network';
@@ -94,6 +95,7 @@ export async function updateName(playerId: string, name: string): Promise<boolea
   if (!client) return false;
   const trimmed = name.trim().slice(0, 20);
   if (!trimmed) return false;
+  if (containsProfanity(trimmed)) return false;
   try {
     const { error } = await client
       .from('players')
@@ -162,6 +164,7 @@ export async function signUp(
   if (!client) return { ok: false, error: 'unconfigured' };
   const handle = normalizeHandle(name);
   if (!handle) return { ok: false, error: 'invalid-name' };
+  if (containsProfanity(handle)) return { ok: false, error: 'inappropriate-name' };
   if (!/^\d{4}$/.test(passcode)) return { ok: false, error: 'invalid-passcode' };
   const passcode_hash = await hashPasscode(passcode);
 

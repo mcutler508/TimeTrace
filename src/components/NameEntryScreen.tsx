@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { haptics } from '../game/haptics';
 import { bootAudio, sfx } from '../game/audio';
-import { isValidPasscode } from '../game/auth';
+import { containsProfanity, isValidPasscode } from '../game/auth';
 import {
   isLeaderboardConfigured,
   signIn as remoteSignIn,
@@ -38,6 +38,7 @@ const PLACEHOLDER_POOL = [
 const SIGNUP_ERROR_MSG: Record<SignUpError, string> = {
   'name-taken': 'That handle is already taken.',
   'invalid-name': 'Pick a handle (1–20 characters).',
+  'inappropriate-name': 'Pick a different handle — keep it clean.',
   'invalid-passcode': 'Passcode must be 4 digits.',
   unconfigured: 'Leaderboard is offline. Try again later.',
   network: 'Could not reach the server. Try again.',
@@ -82,7 +83,8 @@ export default function NameEntryScreen({
 
   const trimmed = name.trim();
   const tooLong = trimmed.length > 20;
-  const handleValid = trimmed.length >= 1 && !tooLong;
+  const inappropriate = trimmed.length >= 1 && containsProfanity(trimmed);
+  const handleValid = trimmed.length >= 1 && !tooLong && !inappropriate;
   const passcodeValid = isValidPasscode(passcode);
 
   const valid = isEditMode
@@ -205,6 +207,9 @@ export default function NameEntryScreen({
           <div className="flex items-center justify-between text-[10px] font-poster tracking-[0.2em] text-splat-paper/55">
             <span>{trimmed.length}/20</span>
             {tooLong && <span className="text-splat-pink">TOO LONG</span>}
+            {!tooLong && inappropriate && (
+              <span className="text-splat-pink">KEEP IT CLEAN</span>
+            )}
           </div>
         </label>
 

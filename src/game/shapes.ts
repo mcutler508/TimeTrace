@@ -433,12 +433,26 @@ function autoRotation(
 }
 
 /**
+ * Fraction of an interior closed-shape segment's path that gets cut out so the
+ * OUT (start) and IN (end) slashes sit at clearly separate points on the curve
+ * — slash glows have ~26px shadowBlur, so the gap needs to be substantial or
+ * the two slashes visually merge. Cut is split half-from-start, half-from-end
+ * so the seam straddles the natural closure (e.g. on a star this removes
+ * roughly one full spike at the closure tip rather than clipping mid-spike).
+ */
+const PORTAL_SEAM_TRIM = 0.24;
+
+/**
  * Generate a continuous unit-space target path from an ordered list of shape
  * segments. Between segments the last point of segment N is flagged
  * `teleport: true` so the rendered line lifts at the portal jump and the
  * scorer treats each segment as its own sub-path. For radially symmetric
  * closed shapes, each segment is auto-rotated so its closure (the IN/OUT
  * portal point) faces the partner segment.
+ *
+ * Interior closed-shape segments (those with portals on both ends) get their
+ * tail trimmed by `PORTAL_SEAM_TRIM` so OUT and IN sit at visibly different
+ * points on the curve. First/last segments and open shapes are left alone.
  */
 export function generateMultiShapePath(segments: ShapeSegment[]): Point[] {
   const result: Point[] = [];
@@ -446,7 +460,18 @@ export function generateMultiShapePath(segments: ShapeSegment[]): Point[] {
     const prev = s > 0 ? segments[s - 1] : undefined;
     const next = s < segments.length - 1 ? segments[s + 1] : undefined;
     const rotation = autoRotation(segments[s], prev, next);
-    const transformed = transformSegmentPath(segments[s], rotation);
+    let transformed = transformSegmentPath(segments[s], rotation);
+    const isInterior = s > 0 && s < segments.length - 1;
+    if (isInterior && isClosedShape(segments[s].shape) && transformed.length > 8) {
+      // Symmetric trim: drop equal slices from start and end so the seam
+      // straddles the natural closure point. This keeps OUT and IN both at
+      // positions on the curve (not at e.g. a star tip where the trim would
+      // otherwise clip mid-spike).
+      const totalCut = Math.floor(transformed.length * PORTAL_SEAM_TRIM);
+      const cutStart = Math.floor(totalCut / 2);
+      const cutEnd = totalCut - cutStart;
+      transformed = transformed.slice(cutStart, transformed.length - cutEnd);
+    }
     if (s > 0 && result.length > 0) {
       const last = result[result.length - 1];
       result[result.length - 1] = { ...last, teleport: true };

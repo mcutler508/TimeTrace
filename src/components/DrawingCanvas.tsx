@@ -101,6 +101,13 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     | { mode: 'tracing' }
     | { mode: 'pending'; pairIndex: number; capturedAt: number; liftedAt: number | null }
   >({ mode: 'tracing' });
+  /**
+   * Live "approach" state for the IN slash nearest the stroke head. Drives the
+   * arm-on-approach visual (slash dim → bright) and the subtle canvas zoom-in
+   * that helps players fine-tune their aim. `proximity` is 0 (outside the
+   * approach zone) → 1 (right at the slash midpoint).
+   */
+  const portalApproachRef = useRef<{ pairIndex: number; proximity: number } | null>(null);
   /** Particles for the OUT-landing burst (separate from the perfect-attempt burst). */
   const landingBurstRef = useRef<
     { x: number; y: number; vx: number; vy: number; startedAt: number; hue: string }[]
@@ -114,7 +121,13 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       onTrackRef.current = false;
       usedPortalsRef.current = new Set();
       portalStateRef.current = { mode: 'tracing' };
+      portalApproachRef.current = null;
       landingBurstRef.current = [];
+      const c = canvasRef.current;
+      if (c) {
+        c.style.transform = 'scale(1)';
+        c.style.transformOrigin = '50% 50%';
+      }
       cancelBurst();
       redraw();
     },
@@ -269,7 +282,10 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       const eTangent = { x: entryPoint.x - ePrev.x, y: entryPoint.y - ePrev.y };
       const xTangent = { x: xNext.x - exitPoint.x, y: xNext.y - exitPoint.y };
       result.push({
-        entry: makeSlashAt(entryPoint, eTangent, 0.13),
+        // IN slash is ~30% smaller than the OUT marker — players have to aim
+        // through it deliberately, and arm-on-approach feedback (see
+        // computeApproachState + drawPortalSlash) makes the engagement obvious.
+        entry: makeSlashAt(entryPoint, eTangent, 0.09),
         exit: makeSlashAt(exitPoint, xTangent, 0.13),
       });
     }
@@ -283,8 +299,14 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     used: boolean,
     pulse: number,
     label: string,
+    /** 0 = dim/dormant, 1 = fully engaged. Use 1 for slashes that don't arm. */
+    proximity: number = 1,
   ) {
-    const breath = used ? 0 : 0.12 * Math.sin(pulse * Math.PI * 2);
+    // Below ~40% proximity the slash sits quiet (no breathing pulse). Above,
+    // it picks up the standard pulse, scaled toward full intensity.
+    const armed = proximity > 0.4;
+    const breath =
+      used || !armed ? 0 : 0.12 * Math.sin(pulse * Math.PI * 2) * proximity;
     const liveLen = slash.halfLen * (1 + breath);
     const a = {
       x: slash.p.x + slash.perp.x * liveLen,
@@ -316,6 +338,10 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       ctx.restore();
       return;
     }
+
+    // Lerp every layer's opacity by proximity so the slash visually "wakes up"
+    // as the stroke approaches. 0.35 floor keeps the dormant slash legible.
+    ctx.globalAlpha = 0.35 + 0.65 * proximity;
 
     // Outer halo
     ctx.shadowBlur = 26;
@@ -399,6 +425,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     pendingMsSinceCapture: number,
     pulse: number,
     now: number,
+    inProximity: number,
   ) {
     // Connection arc — brighter and pink while pending, faint dashed when idle.
     if (!used) {
@@ -427,7 +454,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     } else if (isPending) {
       drawCapturedSlash(ctx, entry, '#3df0ff', pendingMsSinceCapture);
     } else {
-      drawPortalSlash(ctx, entry, '#3df0ff', false, pulse, 'IN');
+      drawPortalSlash(ctx, entry, '#3df0ff', false, pulse, 'IN', inProximity);
     }
 
     // OUT slash
@@ -537,21 +564,42 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     ctx.arc(slash.p.x, slash.p.y, r, 0, Math.PI * 2);
     ctx.fill();
 
-    // Three concentric rings expanding & fading on a 900ms loop
+    // Three concentric rings expanding & fading on a 900ms loop. They start
+    // OUTSIDE the boundary (r → 2.25r) and fade out — purely ambient telegraph,
+    // never readable as the landing zone itself.
     ctx.lineCap = 'round';
     const ringPhase = (now / 900) % 1;
     for (let i = 0; i < 3; i++) {
       const phase = (ringPhase + i / 3) % 1;
-      const radius = r * (0.55 + phase * 1.25);
-      const alpha = (1 - phase) * 0.55;
+      const radius = r * (1.0 + phase * 1.25);
+      const alpha = (1 - phase) * 0.32;
       ctx.shadowBlur = 14;
       ctx.shadowColor = '#ff3da4';
       ctx.strokeStyle = rgba('#ff3da4', alpha);
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(slash.p.x, slash.p.y, radius, 0, Math.PI * 2);
       ctx.stroke();
     }
+
+    // Solid boundary ring at exactly the landing radius — what you see is what
+    // you can hit. Slight breath so it doesn't feel static.
+    const boundaryBreath = 0.04 * Math.sin(pulse * Math.PI * 2);
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = '#ff3da4';
+    ctx.strokeStyle = '#ff3da4';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(slash.p.x, slash.p.y, r * (1 + boundaryBreath), 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Bright inner stripe on the boundary, hugging the same circle.
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 1.25;
+    ctx.beginPath();
+    ctx.arc(slash.p.x, slash.p.y, r * (1 + boundaryBreath), 0, Math.PI * 2);
+    ctx.stroke();
 
     ctx.restore();
 
@@ -739,10 +787,13 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       const pulse = ((now - portalAnimStartRef.current) / 1400) % 1;
       const slashes = portalSlashes();
       const ps = portalStateRef.current;
+      const approach = computeApproachState();
+      portalApproachRef.current = approach;
       slashes.forEach((pair, idx) => {
         const used = usedPortalsRef.current.has(idx);
         const isPending = ps.mode === 'pending' && ps.pairIndex === idx;
         const msSinceCapture = isPending && ps.mode === 'pending' ? now - ps.capturedAt : 0;
+        const inProximity = approach && approach.pairIndex === idx ? approach.proximity : 0;
         drawPortalPair(
           ctx,
           pair.entry,
@@ -752,8 +803,12 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
           msSinceCapture,
           pulse,
           now,
+          inProximity,
         );
       });
+      applyApproachTransform(approach, slashes);
+    } else {
+      applyApproachTransform(null, []);
     }
 
     if (landingBurstRef.current.length > 0) {
@@ -854,9 +909,15 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
   function localPoint(e: PointerEvent): Point {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
+    const { w, h } = sizeRef.current;
+    // getBoundingClientRect reflects CSS transforms (e.g. the portal-approach
+    // zoom), so divide by rect dimensions and scale up to canvas coords. When
+    // no transform is active rect.width === w, this collapses to the original.
+    const sx = rect.width > 0 ? w / rect.width : 1;
+    const sy = rect.height > 0 ? h / rect.height : 1;
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: (e.clientX - rect.left) * sx,
+      y: (e.clientY - rect.top) * sy,
       t: performance.now(),
     };
   }
@@ -875,15 +936,83 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
   }
 
   /**
-   * Generous landing-ring radius around an OUT slash midpoint. Sized to ~2× the
-   * default slash half-length, with a pixel floor so it stays hittable on small
-   * canvases.
+   * Landing-ring radius around an OUT slash midpoint. Tuned so the visual
+   * boundary ring (drawn at exactly this radius in drawArmedExit) matches the
+   * tappable area — what you see is what you can hit. Pixel floor keeps it
+   * usable on small canvases.
    */
   function landingRadius(): number {
     const { w, h } = sizeRef.current;
     const padding = 36;
     const size = Math.min(w, h) - padding * 2;
-    return Math.max(36, 0.18 * size);
+    return Math.max(36, 0.13 * size);
+  }
+
+  /**
+   * Approach radius around an IN slash midpoint. Once the stroke head enters
+   * this zone, the slash arms (visual brightens, canvas leans in slightly).
+   * Generous compared to the slash itself so players get clear lead time.
+   */
+  function approachRadiusFor(halfLen: number): number {
+    return Math.max(70, halfLen * 4);
+  }
+
+  /**
+   * Find the nearest unused IN slash to the current stroke head and report
+   * proximity in [0, 1]. Returns null when no slash is in range, when the
+   * player is not currently tracing, or when there are no portals on this
+   * level. Drives both the slash arming visual and the canvas zoom transform.
+   */
+  function computeApproachState(): { pairIndex: number; proximity: number } | null {
+    if (!hasPortals) return null;
+    if (portalStateRef.current.mode !== 'tracing') return null;
+    if (pathRef.current.length === 0) return null;
+    const head = pathRef.current[pathRef.current.length - 1];
+    const slashes = portalSlashes();
+    let best: { pairIndex: number; proximity: number } | null = null;
+    for (let i = 0; i < slashes.length; i++) {
+      if (usedPortalsRef.current.has(i)) continue;
+      const { entry } = slashes[i];
+      const dist = Math.hypot(head.x - entry.p.x, head.y - entry.p.y);
+      const radius = approachRadiusFor(entry.halfLen);
+      if (dist >= radius) continue;
+      const proximity = 1 - dist / radius;
+      if (!best || proximity > best.proximity) {
+        best = { pairIndex: i, proximity };
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Apply (or release) the subtle canvas zoom-in that helps players fine-tune
+   * their aim near a portal. Scaling tops out at 1.12× at full proximity and
+   * is centered on the IN slash midpoint so the slash stays put on screen
+   * while the rest of the canvas leans in. Pointer math (see localPoint) is
+   * scale-aware, so drawing coordinates remain accurate while transformed.
+   */
+  function applyApproachTransform(
+    approach: { pairIndex: number; proximity: number } | null,
+    slashes: { entry: PortalSlash; exit: PortalSlash }[],
+  ) {
+    const c = canvasRef.current;
+    if (!c) return;
+    if (!c.style.transition) {
+      c.style.transition = 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1)';
+    }
+    if (approach && slashes[approach.pairIndex]) {
+      const mid = slashes[approach.pairIndex].entry.p;
+      const { w, h } = sizeRef.current;
+      if (w > 0 && h > 0) {
+        const ox = (mid.x / w) * 100;
+        const oy = (mid.y / h) * 100;
+        const scale = 1 + 0.12 * approach.proximity;
+        c.style.transformOrigin = `${ox}% ${oy}%`;
+        c.style.transform = `scale(${scale.toFixed(4)})`;
+        return;
+      }
+    }
+    c.style.transform = 'scale(1)';
   }
 
   /**
@@ -901,6 +1030,11 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     for (let i = 0; i < slashes.length; i++) {
       if (usedPortalsRef.current.has(i)) continue;
       const { entry } = slashes[i];
+      // Slash only triggers if the stroke head is inside the approach zone —
+      // kills accidental long-segment crossings that leap over the slash from
+      // far away.
+      const distToMid = Math.hypot(point.x - entry.p.x, point.y - entry.p.y);
+      if (distToMid >= approachRadiusFor(entry.halfLen)) continue;
       if (segmentsIntersect(prev, point, entry.a, entry.b)) {
         // Auto-extend the player's stroke to the canonical IN point (which is
         // the segment's last target point — the closure of a closed shape, or

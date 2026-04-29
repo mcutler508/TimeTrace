@@ -1,4 +1,5 @@
 import type { SavedGameState } from './types';
+import { DEFAULT_PAINT_STYLE, isPaintStyleId } from './paintStyles';
 
 const KEY = 'timetrace-state-v1';
 
@@ -25,6 +26,7 @@ function makeDefaultState(): SavedGameState {
     previousAttemptByChallenge: {},
     attemptCountByChallenge: {},
     currentStreak: 0,
+    paintStyleId: DEFAULT_PAINT_STYLE,
   };
 }
 
@@ -38,6 +40,7 @@ export function loadState(): SavedGameState {
     // Ensure playerId is always present even if older save lacks it.
     if (!merged.playerId) merged.playerId = generateUuid();
     if (typeof merged.playerName !== 'string') merged.playerName = '';
+    if (!isPaintStyleId(merged.paintStyleId)) merged.paintStyleId = DEFAULT_PAINT_STYLE;
     return merged;
   } catch {
     return makeDefaultState();

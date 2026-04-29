@@ -470,7 +470,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'sprint-square-c4',
     shape: 'square',
-    targetTime: 2.0,
+    targetTime: 0.7,
     guideOpacity: 0.4,
     difficulty: 'hard',
     unlockThreshold: 2360,
@@ -491,7 +491,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'sprint-triangle-c4',
     shape: 'triangle',
-    targetTime: 1.8,
+    targetTime: 0.6,
     guideOpacity: 0.4,
     difficulty: 'hard',
     unlockThreshold: 2500,
@@ -512,7 +512,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'sprint-star-c4',
     shape: 'star',
-    targetTime: 2.2,
+    targetTime: 1.0,
     guideOpacity: 0.38,
     difficulty: 'hard',
     unlockThreshold: 2640,
@@ -533,7 +533,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'sprint-heart-c4',
     shape: 'heart',
-    targetTime: 2.5,
+    targetTime: 0.9,
     guideOpacity: 0.36,
     difficulty: 'hard',
     unlockThreshold: 2780,

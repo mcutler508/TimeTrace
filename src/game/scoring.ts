@@ -172,10 +172,19 @@ export function scoreShape(
       sum += Math.hypot(a.x - b.x, a.y - b.y);
     }
     const rotationDist = sum / RESAMPLE_N;
-    // Take whichever metric is more forgiving — Hausdorff for shapes the
-    // player drew in a different parametric direction; rotation-aligned
-    // for sharp polygons where order matters.
-    avgDist = Math.min(rotationDist, hausdorff);
+    // Closed shapes require parametric order: the rotation-aligned distance is
+    // the source of truth. Hausdorff is allowed to win only when it's clearly
+    // close to rotationDist (within 10%) — this keeps the original
+    // self-intersecting / figure-8 edge case forgiving while shutting the door
+    // on nonsense scribbles whose rotationDist is much worse than their
+    // unordered point-set distance. Reverse-direction tracing is already
+    // handled inside `bestRotationOffset` (it tries reversed sequences too),
+    // so we don't lose that case here.
+    // No Hausdorff slack on closed shapes anymore — rotation-aligned distance
+    // is the only thing that counts. Going off the outline now hurts in
+    // proportion to how far you wander, not "averaged out across nearby
+    // target points."
+    avgDist = rotationDist;
   } else {
     let sumFwd = 0;
     let sumRev = 0;
@@ -194,7 +203,10 @@ export function scoreShape(
     avgDist = Math.min(directional, hausdorff);
   }
 
-  let score = Math.max(0, 100 - avgDist * 220);
+  // Bumped from 220 → 300: every unit of off-outline distance costs ~36% more
+  // shape score. A 0.10-normalized average miss now drops the base score from
+  // 78 → 70; a 0.20 miss from 56 → 40.
+  let score = Math.max(0, 100 - avgDist * 300);
 
   const playerLen = pathLength(playerPath);
   const playerBB = boundingBox(playerPath);
@@ -210,8 +222,10 @@ export function scoreShape(
   const lenRatio = playerRel / Math.max(expectedRel, 0.0001);
   if (lenRatio < 0.5) {
     score *= 0.7 + lenRatio * 0.6;
-  } else if (lenRatio > 2.4) {
-    score *= Math.max(0.75, 2.4 / lenRatio);
+  } else if (lenRatio > 1.6) {
+    // Tightened from 2.4 → 1.6 with a steeper falloff. A scribble with 2x the
+    // expected path length now costs ~30% (was ~0%); 3x costs ~55% (was ~25%).
+    score *= Math.max(0.4, 1.6 / lenRatio);
   }
 
   if (closed) {
@@ -245,15 +259,22 @@ export function scoreShape(
   }
   const avgTurn = jagN > 0 ? jagSum / jagN : 0;
   const expectedTurn = closed ? (Math.PI * 2) / RESAMPLE_N : Math.PI / RESAMPLE_N;
-  if (avgTurn > expectedTurn * 8) {
-    score *= 0.92;
+  // Trigger lowered from 8× → 3×, scaling multiplier instead of a flat 0.92.
+  // A path that turns 4× more than expected now costs ~10%; 6× costs ~30%;
+  // 10× (genuine scribble) costs ~70%.
+  if (avgTurn > expectedTurn * 3) {
+    const overshoot = avgTurn / expectedTurn - 3;
+    score *= Math.max(0.3, 1 - overshoot * 0.1);
   }
 
   return Math.round(Math.max(0, Math.min(100, score)));
 }
 
 export function combineFinalScore(shape: number, timing: number): number {
-  return Math.round(shape * 0.5 + timing * 0.5);
+  // 70/30 (shape/timing) so a perfect-time scribble can no longer floor at 50.
+  // Clean traces stay near the top of the band; nonsense traces lose their
+  // free 50-point timing cushion.
+  return Math.round(shape * 0.7 + timing * 0.3);
 }
 
 export function gradeFor(finalScore: number): Grade {

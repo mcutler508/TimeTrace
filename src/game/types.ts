@@ -89,4 +89,5 @@ export interface SavedGameState {
   previousAttemptByChallenge: Record<string, AttemptResult>;
   attemptCountByChallenge: Record<string, number>;
   currentStreak: number;
+  paintStyleId: string;
 }

@@ -9,6 +9,13 @@ import {
   guideTowardTarget,
   smoothPoint,
 } from '../game/assist';
+import {
+  DEFAULT_PAINT_STYLE,
+  renderNeon,
+  renderPaintStroke,
+  rgba,
+  type PaintStyleId,
+} from '../game/paintStyles';
 
 export interface DrawingCanvasHandle {
   reset(): void;
@@ -29,6 +36,7 @@ interface Props {
   resultGrade?: AttemptResult['grade'] | null;
   worstSegment?: { startIdx: number; endIdx: number } | null;
   perfectBurst?: boolean;
+  paintStyleId?: PaintStyleId;
   onStrokeStart?: () => void;
   onStrokeEnd?: (path: Point[]) => void;
   onPointAdded?: (count: number) => void;
@@ -36,24 +44,6 @@ interface Props {
   onPortalPause?: () => void;
   /** Called when the player successfully places inside the OUT landing ring. Host should resume the timer. */
   onPortalResume?: () => void;
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const m = hex.replace('#', '').match(/.{2}/g);
-  if (!m) return { r: 0, g: 240, b: 255 };
-  return { r: parseInt(m[0], 16), g: parseInt(m[1], 16), b: parseInt(m[2], 16) };
-}
-
-function rgba(hex: string, a: number): string {
-  const { r, g, b } = hexToRgb(hex);
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
-}
-
-function tintTowardWhite(hex: string, t: number): string {
-  const { r, g, b } = hexToRgb(hex);
-  return `rgb(${Math.round(r + (255 - r) * t)}, ${Math.round(g + (255 - g) * t)}, ${Math.round(
-    b + (255 - b) * t,
-  )})`;
 }
 
 const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCanvas(
@@ -71,6 +61,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     resultGrade = null,
     worstSegment = null,
     perfectBurst = false,
+    paintStyleId = DEFAULT_PAINT_STYLE,
     onStrokeStart,
     onStrokeEnd,
     onPortalPause,
@@ -703,7 +694,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     const guideHex = '#bcd9ff';
 
     if (resultMode && resultPath && resultPath.length > 1) {
-      drawNeonPath(ctx, tCanvas, guideHex, 4, Math.min(0.85, guideOpacity * 1.6) * 0.9, false);
+      renderNeon(ctx, tCanvas, guideHex, 4, Math.min(0.85, guideOpacity * 1.6) * 0.9, false);
 
       // Use the player's actual canvas coordinates so the line shows up exactly
       // where it was drawn — overlay tells the truth about position vs target.
@@ -711,10 +702,12 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
       const isPerfect = resultGrade === 'Perfect';
       const isElite = resultGrade === 'Elite';
       if (isPerfect) {
+        // Perfect-grade celebration always uses the rainbow sticker, regardless
+        // of the player's selected paint style — it's a reward state.
         drawRainbowStickerPath(ctx, playerCanvas, 9);
       } else {
         const baseColor = isElite ? '#ffe83d' : accentColor;
-        drawNeonPath(ctx, playerCanvas, baseColor, 8, 1, true);
+        renderPaintStroke(ctx, playerCanvas, baseColor, 8, 1, paintStyleId);
       }
 
       if (
@@ -726,14 +719,15 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
           worstSegment.startIdx,
           worstSegment.endIdx + 1,
         );
-        drawNeonPath(ctx, slice, '#ff3da4', 12, 1, true);
+        // Worst-segment annotation stays neon pink — it's a UI overlay, not paint.
+        renderNeon(ctx, slice, '#ff3da4', 12, 1, true);
       }
     } else {
-      drawNeonPath(ctx, tCanvas, guideHex, 5, guideOpacity, false);
+      renderNeon(ctx, tCanvas, guideHex, 5, guideOpacity, false);
 
       if (pathRef.current.length > 1) {
         const intensity = onTrackRef.current ? 1.18 : 1.0;
-        drawNeonPath(ctx, pathRef.current, accentColor, 9, intensity, true);
+        renderPaintStroke(ctx, pathRef.current, accentColor, 9, intensity, paintStyleId);
       }
     }
 
@@ -769,97 +763,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(function DrawingCan
     }
 
     void accentSoft;
-  }
-
-  function drawNeonPath(
-    ctx: CanvasRenderingContext2D,
-    pts: Point[],
-    hex: string,
-    coreWidth: number,
-    intensity: number,
-    sticker: boolean,
-  ) {
-    if (pts.length < 2) return;
-    // Guide paths (sticker=false) fully hide when intensity is zero — used by
-    // Chapter 4 BLITZ flash-trace levels which need the canvas to be totally
-    // blank after the memorize phase ends. Without this short-circuit the
-    // saturated-core stroke draws at full hex alpha regardless of intensity.
-    if (!sticker && intensity <= 0.005) return;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    // Split into segments on teleport markers so the line lifts at portal jumps.
-    const segments: Point[][] = [];
-    let cur: Point[] = [];
-    for (let i = 0; i < pts.length; i++) {
-      cur.push(pts[i]);
-      if (pts[i].teleport) {
-        if (cur.length >= 2) segments.push(cur);
-        cur = [];
-      }
-    }
-    if (cur.length >= 2) segments.push(cur);
-    if (segments.length === 0) return;
-
-    const buildPath = () => {
-      ctx.beginPath();
-      for (const seg of segments) {
-        ctx.moveTo(seg[0].x, seg[0].y);
-        for (let i = 1; i < seg.length - 1; i++) {
-          const a = seg[i];
-          const b = seg[i + 1];
-          const mx = (a.x + b.x) / 2;
-          const my = (a.y + b.y) / 2;
-          ctx.quadraticCurveTo(a.x, a.y, mx, my);
-        }
-        const last = seg[seg.length - 1];
-        ctx.lineTo(last.x, last.y);
-      }
-    };
-
-    // Outer halo
-    ctx.shadowBlur = 38;
-    ctx.shadowColor = rgba(hex, 0.85 * intensity);
-    ctx.strokeStyle = rgba(hex, 0.34 * intensity);
-    ctx.lineWidth = coreWidth * 4.5;
-    buildPath();
-    ctx.stroke();
-
-    // Mid glow
-    ctx.shadowBlur = 18;
-    ctx.shadowColor = rgba(hex, 1 * intensity);
-    ctx.strokeStyle = rgba(hex, 0.72 * intensity);
-    ctx.lineWidth = coreWidth * 2;
-    buildPath();
-    ctx.stroke();
-
-    if (sticker) {
-      // Black sticker outline
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = '#0a0708';
-      ctx.lineWidth = coreWidth + 6;
-      buildPath();
-      ctx.stroke();
-    }
-
-    // Saturated color core
-    ctx.shadowBlur = sticker ? 4 : 6;
-    ctx.shadowColor = rgba(hex, 0.85 * intensity);
-    ctx.strokeStyle = hex;
-    ctx.lineWidth = coreWidth;
-    buildPath();
-    ctx.stroke();
-
-    if (sticker) {
-      // White-tinted highlight on top for that hot-sticker shine
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = tintTowardWhite(hex, 0.7);
-      ctx.lineWidth = Math.max(2, coreWidth * 0.3);
-      buildPath();
-      ctx.stroke();
-    }
-
-    ctx.shadowBlur = 0;
   }
 
   function drawRainbowStickerPath(

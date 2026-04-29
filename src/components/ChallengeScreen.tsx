@@ -10,6 +10,7 @@ import { sfx } from '../game/audio';
 import { findWorstSegment, type WorstSegment } from '../game/analyze';
 import { scaleNormalizedToCanvas } from '../game/pathUtils';
 import { accentFor, type ChallengeMeta } from '../game/challenges';
+import type { PaintStyleId } from '../game/paintStyles';
 
 export interface SubmitMeta {
   isNewBest: boolean;
@@ -42,6 +43,7 @@ interface Props {
     challengeId: string,
     targetUnitPath: Point[],
   ) => AttemptResult;
+  paintStyleId: PaintStyleId;
 }
 
 type Phase = 'memorize' | 'armed' | 'running' | 'result';
@@ -64,6 +66,7 @@ export default function ChallengeScreen({
   showTutorialIntro = false,
   onDismissIntro,
   scoreAttempt,
+  paintStyleId,
 }: Props) {
   const canvasRef = useRef<DrawingCanvasHandle | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -401,6 +404,7 @@ export default function ChallengeScreen({
           closedShape={closedShape}
           accentColor={accent.stroke}
           accentSoft={accent.soft}
+          paintStyleId={paintStyleId}
           assistEnabled={assistEnabled}
           assistStrength={assistStrength}
           resultMode={phase === 'result'}

@@ -45,6 +45,31 @@
     touch-action: none;
   }
 
+  /* Hide native scrollbars on horizontal chip strips while keeping scroll. */
+  .scroll-hide-x {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scroll-hide-x::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Soft fade on the right edge so the user senses there's more to scroll. */
+  .edge-fade-x {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      black 0,
+      black calc(100% - 28px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      black 0,
+      black calc(100% - 28px),
+      transparent 100%
+    );
+  }
+
   /* Heavy, sticker-style text treatments */
 
   .text-poster {

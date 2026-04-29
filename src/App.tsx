@@ -25,6 +25,11 @@ import {
 } from './game/leaderboard';
 import { gradeFor } from './game/scoring';
 import type { AttemptResult, Point, SavedGameState } from './game/types';
+import {
+  DEFAULT_PAINT_STYLE,
+  isPaintStyleId,
+  type PaintStyleId,
+} from './game/paintStyles';
 
 type View = 'name' | 'home' | 'play' | 'leaderboard';
 
@@ -229,6 +234,7 @@ export default function App() {
       previousAttemptByChallenge: {},
       attemptCountByChallenge: {},
       currentStreak: 0,
+      paintStyleId: prev.paintStyleId,
     }));
     setIntroDismissed(true);
     setView('home');
@@ -252,6 +258,10 @@ export default function App() {
     setView('name');
   }
 
+  function handleSelectPaintStyle(id: PaintStyleId) {
+    setState((prev) => ({ ...prev, paintStyleId: id }));
+  }
+
   function handlePickChallenge(id: string) {
     const idx = findChallengeIndex(id);
     if (idx < 0) return;
@@ -269,6 +279,9 @@ export default function App() {
     () => totalPointsFromBests(state.bestScoresByChallenge),
     [state.bestScoresByChallenge],
   );
+  const activePaintStyle: PaintStyleId = isPaintStyleId(state.paintStyleId)
+    ? state.paintStyleId
+    : DEFAULT_PAINT_STYLE;
 
   const wrapperClass = 'w-full max-w-md mx-auto min-h-screen flex flex-col';
   const wrapperStyle = { minHeight: '100dvh' } as const;
@@ -300,10 +313,12 @@ export default function App() {
         streak={state.currentStreak}
         playerName={state.playerName}
         focusChallengeId={currentChallenge.id}
+        paintStyleId={activePaintStyle}
         onPickChallenge={handlePickChallenge}
         onSignOut={handleSignOut}
         onOpenLeaderboard={handleOpenLeaderboard}
         onEditName={handleEditName}
+        onSelectPaintStyle={handleSelectPaintStyle}
       />
     );
   } else {
@@ -324,6 +339,7 @@ export default function App() {
         onNext={handleNext}
         onHome={canGoHome ? handleHome : undefined}
         scoreAttempt={scoreAttempt}
+        paintStyleId={activePaintStyle}
       />
     );
   }

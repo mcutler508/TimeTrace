@@ -7,6 +7,8 @@ import type { AttemptResult } from '../game/types';
 import LevelMap from './LevelMap';
 import HowItWorks from './HowItWorks';
 import NameEntryScreen from './NameEntryScreen';
+import PaintStylePicker from './PaintStylePicker';
+import type { PaintStyleId } from '../game/paintStyles';
 import {
   getHapticsEnabled,
   haptics,
@@ -28,10 +30,12 @@ interface Props {
   playerName: string;
   /** Challenge to scroll into view on first mount (the level the player just exited). */
   focusChallengeId?: string | null;
+  paintStyleId: PaintStyleId;
   onPickChallenge: (challengeId: string) => void;
   onSignOut?: () => void;
   onOpenLeaderboard?: () => void;
   onEditName?: (name: string) => void;
+  onSelectPaintStyle: (id: PaintStyleId) => void;
 }
 
 export default function HomeScreen({
@@ -40,10 +44,12 @@ export default function HomeScreen({
   streak,
   playerName,
   focusChallengeId,
+  paintStyleId,
   onPickChallenge,
   onSignOut,
   onOpenLeaderboard,
   onEditName,
+  onSelectPaintStyle,
 }: Props) {
   const { next, needed } = pointsToNextUnlock(totalPoints);
   const hapticsSupported = isHapticsSupported();
@@ -220,6 +226,11 @@ export default function HomeScreen({
           )}
         </div>
       </div>
+
+      <PaintStylePicker
+        selectedId={paintStyleId}
+        onSelect={onSelectPaintStyle}
+      />
 
       {CHAPTERS.map((chap) => (
         <LevelMap

@@ -107,6 +107,23 @@
     text-shadow: 0 0 14px rgba(255, 61, 164, 0.85), 0 0 28px rgba(255, 61, 164, 0.45);
   }
 
+  /* Same gradient + rainbowShift animation as .text-rainbow, but applied as
+     a regular background fill — used to flag tray buttons that navigate to
+     a different screen. */
+  .bg-rainbow-shift {
+    background: linear-gradient(
+      90deg,
+      #ff3da4 0%,
+      #ff7a3d 18%,
+      #ffe83d 35%,
+      #a4ff3d 55%,
+      #3df0ff 75%,
+      #a44dff 100%
+    );
+    background-size: 200% 100%;
+    animation: rainbowShift 6s ease-in-out infinite;
+  }
+
   .text-rainbow {
     background: linear-gradient(
       90deg,

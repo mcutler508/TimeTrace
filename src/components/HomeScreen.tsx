@@ -335,18 +335,6 @@ export default function HomeScreen({
             <StatsIcon />
           </TrayButton>
           <TrayButton
-            label="Leaders"
-            accent="pink"
-            tilt={1.2}
-            onClick={() => {
-              haptics.tap();
-              sfx.tap();
-              onOpenLeaderboard?.();
-            }}
-          >
-            <TrophyIcon />
-          </TrayButton>
-          <TrayButton
             label="Settings"
             active={activeSheet === 'settings'}
             accent="yellow"
@@ -354,6 +342,19 @@ export default function HomeScreen({
             onClick={() => openSheet('settings')}
           >
             <GearIcon />
+          </TrayButton>
+          <TrayButton
+            label="Leaders"
+            accent="pink"
+            tilt={1.2}
+            bgClass="bg-rainbow-shift"
+            onClick={() => {
+              haptics.tap();
+              sfx.tap();
+              onOpenLeaderboard?.();
+            }}
+          >
+            <TrophyIcon />
           </TrayButton>
         </div>
       </nav>
@@ -409,6 +410,7 @@ function TrayButton({
   active = false,
   accent,
   tilt = 0,
+  bgClass = 'bg-splat-paper',
   children,
   onClick,
 }: {
@@ -417,6 +419,9 @@ function TrayButton({
   accent: 'cyan' | 'pink' | 'yellow' | 'lime';
   /** Resting tilt in degrees. Active state straightens to 0. */
   tilt?: number;
+  /** Override resting background — used to flag tray buttons that navigate
+   *  away from the home screen so they don't look identical to in-place sheets. */
+  bgClass?: string;
   children: ReactNode;
   onClick: () => void;
 }) {
@@ -439,7 +444,7 @@ function TrayButton({
         'active:translate-x-[1px] active:translate-y-[1px]',
         active
           ? `${p.bg} text-splat-black scale-[1.08]`
-          : 'bg-splat-paper text-splat-black hover:-translate-y-[1px]',
+          : `${bgClass} text-splat-black hover:-translate-y-[1px]`,
       ].join(' ')}
       style={{
         transform: active ? 'rotate(0deg)' : `rotate(${tilt}deg)`,

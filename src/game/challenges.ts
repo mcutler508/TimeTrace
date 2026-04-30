@@ -307,7 +307,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'twin-loops-c3',
     shape: 'circle',
-    targetTime: 7.0,
+    targetTime: 6.0,
     guideOpacity: 0.34,
     difficulty: 'medium',
     unlockThreshold: 1640,
@@ -321,7 +321,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'box-and-ball-c3',
     shape: 'square',
-    targetTime: 7.5,
+    targetTime: 6.5,
     guideOpacity: 0.32,
     difficulty: 'medium',
     unlockThreshold: 1700,
@@ -335,7 +335,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'trail-blaze-c3',
     shape: 'triangle',
-    targetTime: 8.0,
+    targetTime: 7.0,
     guideOpacity: 0.32,
     difficulty: 'medium',
     unlockThreshold: 1760,
@@ -349,7 +349,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'star-bright-c3',
     shape: 'star',
-    targetTime: 8.5,
+    targetTime: 7.25,
     guideOpacity: 0.3,
     difficulty: 'hard',
     unlockThreshold: 1820,
@@ -363,7 +363,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'lightning-coil-c3',
     shape: 'bolt',
-    targetTime: 9.0,
+    targetTime: 7.5,
     guideOpacity: 0.3,
     difficulty: 'hard',
     unlockThreshold: 1880,
@@ -377,7 +377,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'first-trio-c3',
     shape: 'circle',
-    targetTime: 10.0,
+    targetTime: 8.25,
     guideOpacity: 0.3,
     difficulty: 'hard',
     unlockThreshold: 1950,
@@ -392,7 +392,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'stargaze-c3',
     shape: 'heart',
-    targetTime: 11.0,
+    targetTime: 9.0,
     guideOpacity: 0.3,
     difficulty: 'hard',
     unlockThreshold: 2020,
@@ -407,7 +407,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'zigzag-c3',
     shape: 'bolt',
-    targetTime: 12.0,
+    targetTime: 9.75,
     guideOpacity: 0.3,
     difficulty: 'hard',
     unlockThreshold: 2090,
@@ -422,7 +422,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'knot-work-c3',
     shape: 'crescent',
-    targetTime: 13.0,
+    targetTime: 10.5,
     guideOpacity: 0.28,
     difficulty: 'hard',
     unlockThreshold: 2160,
@@ -437,7 +437,7 @@ export const CHALLENGES: ChallengeMeta[] = [
   {
     id: 'constellation-prime-c3',
     shape: 'pretzel',
-    targetTime: 14.5,
+    targetTime: 11.5,
     guideOpacity: 0.28,
     difficulty: 'hard',
     unlockThreshold: 2240,

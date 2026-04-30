@@ -42,7 +42,7 @@ interface Props {
   onSelectPaintVariant: (id: PaintStyleId, variantId: string) => void;
 }
 
-type ActiveSheet = 'paint' | 'settings' | null;
+type ActiveSheet = 'paint' | 'stats' | 'settings' | null;
 
 export default function HomeScreen({
   totalPoints,
@@ -151,20 +151,14 @@ export default function HomeScreen({
         ref={scrollRef}
         className="flex flex-col flex-1 w-full max-w-md mx-auto px-5 pt-8 pb-36 gap-6 overflow-y-auto"
       >
-        <header className="flex items-start justify-between gap-3 pt-2">
+        <header className="flex items-start justify-center gap-3 pt-2">
           <h1
-            className="logo-timetrace text-[3.4rem] sm:text-[3.9rem]"
+            className="logo-timetrace text-[3.6rem] sm:text-[4.2rem]"
             aria-label="TimeTrace"
           >
             <span className="logo-timetrace__row logo-timetrace__row--time">TIME</span>
             <span className="logo-timetrace__row logo-timetrace__row--trace">TRACE</span>
           </h1>
-          <div className="card-sticker px-3 py-2 -rotate-3 shrink-0 mt-2">
-            <div className="text-[9px] uppercase tracking-[0.28em] text-splat-yellow font-bold">Streak</div>
-            <div className="font-poster text-2xl text-splat-yellow text-glow-gold tabular-nums leading-none mt-0.5">
-              {streak}
-            </div>
-          </div>
         </header>
 
         <div className="card-sticker-paper px-4 py-4 flex items-center justify-between gap-3 rotate-[-0.6deg]">
@@ -234,6 +228,26 @@ export default function HomeScreen({
             forceOpen
             className="rotate-0"
           />
+        </TraySheet>
+      )}
+
+      {activeSheet === 'stats' && (
+        <TraySheet title="Stats" onClose={() => setActiveSheet(null)}>
+          <div className="flex flex-col gap-3">
+            <StatTile
+              label="Current Streak"
+              value={streak}
+              accent="yellow"
+              hint={
+                streak > 0
+                  ? 'Levels passed in a row at 70+ pts.'
+                  : 'Score 70+ on a level to start a streak.'
+              }
+            />
+            <p className="text-[10px] uppercase tracking-[0.22em] text-splat-paper/55 text-center">
+              More stats coming soon
+            </p>
+          </div>
         </TraySheet>
       )}
 
@@ -311,22 +325,33 @@ export default function HomeScreen({
       )}
 
       <nav
-        className="fixed bottom-0 left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-4 pt-2"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}
+        className="fixed bottom-0 left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-4 pt-3"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.85rem)' }}
         aria-label="Level select tray"
       >
-        <div className="grid grid-cols-3 gap-2 rounded-2xl border-[3px] border-splat-black bg-[#100c25]/95 p-2 shadow-[0_-10px_30px_rgba(0,0,0,0.45),0_0_22px_rgba(61,240,255,0.14)_inset] backdrop-blur-md">
+        <div className="grid grid-cols-4 gap-3 px-1.5 pt-3 pb-1">
           <TrayButton
             label="Paint"
             active={activeSheet === 'paint'}
             accent="cyan"
+            tilt={-2.5}
             onClick={() => openSheet('paint')}
           >
             <PaintIcon />
           </TrayButton>
           <TrayButton
+            label="Stats"
+            active={activeSheet === 'stats'}
+            accent="lime"
+            tilt={1.5}
+            onClick={() => openSheet('stats')}
+          >
+            <StatsIcon />
+          </TrayButton>
+          <TrayButton
             label="Leaders"
             accent="pink"
+            tilt={-1.5}
             onClick={() => {
               haptics.tap();
               sfx.tap();
@@ -339,6 +364,7 @@ export default function HomeScreen({
             label="Settings"
             active={activeSheet === 'settings'}
             accent="yellow"
+            tilt={2.2}
             onClick={() => openSheet('settings')}
           >
             <GearIcon />
@@ -396,21 +422,25 @@ function TrayButton({
   label,
   active = false,
   accent,
+  tilt = 0,
   children,
   onClick,
 }: {
   label: string;
   active?: boolean;
-  accent: 'cyan' | 'pink' | 'yellow';
+  accent: 'cyan' | 'pink' | 'yellow' | 'lime';
+  /** Resting tilt in degrees. Active state straightens to 0. */
+  tilt?: number;
   children: ReactNode;
   onClick: () => void;
 }) {
-  const accentClass =
-    accent === 'cyan'
-      ? 'text-splat-cyan border-splat-cyan/70'
-      : accent === 'pink'
-        ? 'text-splat-pink border-splat-pink/70'
-        : 'text-splat-yellow border-splat-yellow/70';
+  const palette = {
+    cyan: { text: 'text-splat-cyan', bg: 'bg-splat-cyan', glow: 'rgba(61, 240, 255, 0.55)' },
+    pink: { text: 'text-splat-pink', bg: 'bg-splat-pink', glow: 'rgba(255, 61, 164, 0.55)' },
+    yellow: { text: 'text-splat-yellow', bg: 'bg-splat-yellow', glow: 'rgba(255, 232, 61, 0.55)' },
+    lime: { text: 'text-splat-lime', bg: 'bg-splat-lime', glow: 'rgba(164, 255, 61, 0.55)' },
+  } as const;
+  const p = palette[accent];
 
   return (
     <button
@@ -418,15 +448,26 @@ function TrayButton({
       aria-pressed={active}
       onClick={onClick}
       className={[
-        'min-h-[4.25rem] rounded-xl border-2 px-2 py-2 transition-transform active:translate-y-[1px]',
-        'flex flex-col items-center justify-center gap-1 bg-splat-black/70',
-        active ? `${accentClass} shadow-[0_0_18px_rgba(61,240,255,0.18)]` : 'border-splat-paper/15 text-splat-paper/85',
+        'relative min-h-[5rem] px-2 py-2.5 rounded-xl border-[3px] border-splat-black',
+        'flex flex-col items-center justify-center gap-1.5 transition-all duration-150',
+        'active:translate-x-[1px] active:translate-y-[1px]',
+        active
+          ? `${p.bg} text-splat-black scale-[1.08]`
+          : 'bg-splat-paper text-splat-black hover:-translate-y-[1px]',
       ].join(' ')}
+      style={{
+        transform: active ? 'rotate(0deg)' : `rotate(${tilt}deg)`,
+        boxShadow: active
+          ? `4px 4px 0 0 #0a0708, 0 0 22px ${p.glow}, 0 0 42px ${p.glow}`
+          : '4px 4px 0 0 #0a0708',
+      }}
     >
-      <span className={active ? accentClass.split(' ')[0] : 'text-splat-paper/75'}>
-        {children}
-      </span>
-      <span className="text-poster text-[9px] tracking-[0.16em] leading-none">
+      <span className={active ? 'text-splat-black' : p.text}>{children}</span>
+      <span
+        className={`text-poster text-[11px] tracking-[0.16em] leading-none ${
+          active ? 'text-splat-black' : 'text-splat-black/85'
+        }`}
+      >
         {label}
       </span>
     </button>
@@ -461,36 +502,120 @@ function ToggleButton({
   );
 }
 
+/** Icons are sticker silhouettes: solid currentColor fills with optional white
+ *  highlight cells. They read on cream (inactive) and on accent (active) bgs. */
+
 function PaintIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M4 16c5.5-7.5 11.5-7.5 16 0" />
-      <path d="M6 19c3.8-3.4 8.3-3.4 12 0" />
-      <path d="M7 8h.01" />
-      <path d="M12 6h.01" />
-      <path d="M17 8h.01" />
+    <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden>
+      {/* curving stroke ribbon — calls out the game itself */}
+      <path
+        d="M3 18 C 8 6, 16 6, 25 13"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3.6"
+        strokeLinecap="round"
+      />
+      {/* sparkle stars */}
+      <path
+        d="M22 6 l1.2 2.4 2.4 1.2 -2.4 1.2 -1.2 2.4 -1.2 -2.4 -2.4 -1.2 2.4 -1.2 z"
+        fill="currentColor"
+      />
+      <circle cx="6" cy="22" r="1.6" fill="currentColor" />
     </svg>
   );
 }
 
 function TrophyIcon() {
+  // Crown — feels more arcade-leaderboard than a trophy cup
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M8 4h8v4a4 4 0 0 1-8 0V4Z" />
-      <path d="M8 6H5a3 3 0 0 0 3 5" />
-      <path d="M16 6h3a3 3 0 0 1-3 5" />
-      <path d="M12 12v5" />
-      <path d="M8 20h8" />
-      <path d="M10 17h4" />
+    <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden>
+      <path
+        d="M4 9 L8 15 L14 6 L20 15 L24 9 L23 21 L5 21 Z"
+        fill="currentColor"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <circle cx="4" cy="9" r="1.8" fill="currentColor" />
+      <circle cx="14" cy="6" r="1.8" fill="currentColor" />
+      <circle cx="24" cy="9" r="1.8" fill="currentColor" />
+      <rect x="6.5" y="22.5" width="15" height="2.5" rx="0.8" fill="currentColor" />
     </svg>
   );
 }
 
-function GearIcon() {
+function StatsIcon() {
+  // Chunky filled bars with a star spark on top of the tallest
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" />
-      <path d="M19 12a7.8 7.8 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.3 3.1a7 7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 3.1h5l.3-3.1a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1Z" />
+    <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden>
+      <rect x="3" y="16" width="6" height="9" rx="1.2" fill="currentColor" />
+      <rect x="11" y="9" width="6" height="16" rx="1.2" fill="currentColor" />
+      <rect x="19" y="13" width="6" height="12" rx="1.2" fill="currentColor" />
+      {/* spark on the tallest bar */}
+      <path
+        d="M14 3 l1.2 2.4 2.4 1.2 -2.4 1.2 -1.2 2.4 -1.2 -2.4 -2.4 -1.2 2.4 -1.2 z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  hint,
+  accent,
+}: {
+  label: string;
+  value: number | string;
+  hint?: string;
+  accent: 'yellow' | 'cyan' | 'pink' | 'lime' | 'violet';
+}) {
+  const valueClass =
+    accent === 'yellow'
+      ? 'text-splat-yellow text-glow-gold'
+      : accent === 'cyan'
+        ? 'text-splat-cyan text-glow-cyan'
+        : accent === 'pink'
+          ? 'text-splat-pink text-glow-pink'
+          : accent === 'lime'
+            ? 'text-splat-lime'
+            : 'text-splat-violet';
+  return (
+    <div className="rounded-xl border-2 border-splat-black bg-splat-black/55 px-4 py-3 flex items-center justify-between gap-4">
+      <div>
+        <div className="text-[9px] uppercase tracking-[0.26em] font-bold text-splat-paper/65">
+          {label}
+        </div>
+        {hint && (
+          <div className="text-[10px] text-splat-paper/55 mt-0.5 leading-snug max-w-[14rem]">
+            {hint}
+          </div>
+        )}
+      </div>
+      <div className={`font-poster text-4xl tabular-nums leading-none ${valueClass}`}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function GearIcon() {
+  // Sparkles — two 4-point stars, big + small. Same star shape used in the
+  // Comet and Constellation paint styles, so the language stays consistent.
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden>
+      {/* big star */}
+      <path
+        d="M11 3 L13.5 9.5 L20 12 L13.5 14.5 L11 21 L8.5 14.5 L2 12 L8.5 9.5 Z"
+        fill="currentColor"
+      />
+      {/* small star */}
+      <path
+        d="M21 16 L22.4 19.6 L26 21 L22.4 22.4 L21 26 L19.6 22.4 L16 21 L19.6 19.6 Z"
+        fill="currentColor"
+      />
     </svg>
   );
 }

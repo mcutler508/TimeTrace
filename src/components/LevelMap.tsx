@@ -12,8 +12,6 @@ import type { AttemptResult } from '../game/types';
 import ShapePreview from './ShapePreview';
 import { haptics } from '../game/haptics';
 import { sfx } from '../game/audio';
-import colorfulBricksUrl from '../../assets/ColorfulBricks.png';
-import woodPanelUrl from '../../assets/WoodPanelPaintBG.png';
 
 interface Props {
   chapter: ChapterMeta;
@@ -54,6 +52,95 @@ function nodeXPercent(i: number): number {
 
 function nodeY(i: number): number {
   return TOP_PAD_PX + i * ROW_PX;
+}
+
+/**
+ * Topographic-contour banner background. Renders nested rounded path bands
+ * in the chapter accent color, like a hand-traced topo map. Each chapter
+ * gets a different band count, density, and rotation for visual identity.
+ */
+function ChapterTopoBg({ chapterId, accent }: { chapterId: number; accent: string }) {
+  // Per-chapter recipe — band count, inset step, edge waviness, rotation.
+  const cfg = ((): {
+    bandCount: number;
+    inset: number;
+    waviness: number;
+    rotation: number;
+    skewX: number;
+  } => {
+    switch (chapterId) {
+      case 1:
+        return { bandCount: 7, inset: 14, waviness: 6, rotation: -2, skewX: 0 };
+      case 2:
+        return { bandCount: 8, inset: 12, waviness: 9, rotation: 3, skewX: -4 };
+      case 3:
+        return { bandCount: 9, inset: 11, waviness: 11, rotation: -3, skewX: 4 };
+      case 4:
+        return { bandCount: 6, inset: 16, waviness: 18, rotation: 6, skewX: -8 };
+      case 5:
+        return { bandCount: 10, inset: 10, waviness: 14, rotation: -4, skewX: 6 };
+      default:
+        return { bandCount: 7, inset: 14, waviness: 8, rotation: 0, skewX: 0 };
+    }
+  })();
+
+  // Build N concentric "wavy rounded rect" paths inside a 200x100 viewBox.
+  // Each band insets by `cfg.inset / 2` per step from both axes.
+  const W = 200;
+  const H = 100;
+  const bands = [];
+  for (let i = 0; i < cfg.bandCount; i++) {
+    const inset = i * (cfg.inset / 2);
+    const x = inset;
+    const y = inset * 0.6;
+    const w = W - inset * 2;
+    const h = H - inset * 1.2;
+    if (w < 6 || h < 6) break;
+    const r = Math.max(4, 18 - i * 1.5);
+    // Sinusoidal wobble on the right and bottom edges — simple but reads as
+    // hand-drawn / topographic. Symmetry on top/left keeps the bands nested.
+    const wob = cfg.waviness * (0.65 + 0.35 * (i / Math.max(1, cfg.bandCount - 1)));
+    const midX = x + w / 2;
+    const midY = y + h / 2;
+    const d =
+      `M ${x + r} ${y} ` +
+      `L ${x + w - r} ${y} ` +
+      `Q ${x + w + wob * 0.4} ${midY * 0.5} ${x + w} ${y + r} ` +
+      `L ${x + w} ${y + h - r} ` +
+      `Q ${midX} ${y + h + wob * 0.5} ${x + w - r} ${y + h} ` +
+      `L ${x + r} ${y + h} ` +
+      `Q ${x - wob * 0.3} ${midY} ${x} ${y + h - r} ` +
+      `L ${x} ${y + r} ` +
+      `Q ${midX * 0.6} ${y - wob * 0.4} ${x + r} ${y} Z`;
+    const alpha = 0.18 + (i / cfg.bandCount) * 0.18;
+    const strokeW = 1 + (i % 3 === 0 ? 0.6 : 0);
+    bands.push(
+      <path
+        key={i}
+        d={d}
+        fill="none"
+        stroke={accent}
+        strokeOpacity={alpha}
+        strokeWidth={strokeW}
+        strokeLinejoin="round"
+      />,
+    );
+  }
+
+  return (
+    <svg
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      aria-hidden
+      style={{
+        transform: `rotate(${cfg.rotation}deg) skewX(${cfg.skewX}deg)`,
+        transformOrigin: 'center',
+      }}
+    >
+      {bands}
+    </svg>
+  );
 }
 
 export default function LevelMap({
@@ -212,32 +299,28 @@ export default function LevelMap({
     return { puffs, particles };
   }, [levels.length]);
 
-  const textureUrl = chapter.id === 1 ? colorfulBricksUrl : woodPanelUrl;
-  const tintGradient =
+  const baseGradient =
     chapter.id === 1
-      ? 'linear-gradient(180deg, rgba(20,18,38,0.52) 0%, rgba(10,8,22,0.68) 100%)'
+      ? 'linear-gradient(160deg, #0c1428 0%, #060a18 100%)'
       : chapter.id === 3
-        ? 'linear-gradient(180deg, rgba(28,16,52,0.55) 0%, rgba(14,8,32,0.72) 100%)'
+        ? 'linear-gradient(160deg, #1a0c2c 0%, #0a0414 100%)'
         : chapter.id === 4
-          ? 'linear-gradient(180deg, rgba(34,28,8,0.55) 0%, rgba(20,14,4,0.72) 100%)'
-          : 'linear-gradient(180deg, rgba(28,12,32,0.45) 0%, rgba(16,6,20,0.68) 100%)';
-
-  const textureSize =
-    chapter.id === 2 || chapter.id === 3 || chapter.id === 4 ? '100% 100%' : 'cover';
+          ? 'linear-gradient(160deg, #1c1606 0%, #0a0802 100%)'
+          : chapter.id === 5
+            ? 'linear-gradient(160deg, #14062a 0%, #08001a 100%)'
+            : 'linear-gradient(160deg, #18082a 0%, #0a0414 100%)';
 
   const gateBanner = (
     <div
       className="relative px-5 py-4 mb-4 overflow-hidden"
       style={{
-        backgroundImage: `${tintGradient}, url(${textureUrl})`,
-        backgroundSize: `cover, ${textureSize}`,
-        backgroundPosition: 'center, center',
-        backgroundRepeat: 'no-repeat, no-repeat',
+        background: baseGradient,
         border: `2.5px solid ${accent}`,
         borderRadius: 22,
         boxShadow: `0 0 0 3px #0a0708, 6px 6px 0 0 #0a0708, inset 0 0 32px ${accentSoft}`,
       }}
     >
+      <ChapterTopoBg chapterId={chapter.id} accent={accent} />
       <div className="relative flex items-center justify-between gap-3">
         <div>
           <div

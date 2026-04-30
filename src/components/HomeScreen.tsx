@@ -151,7 +151,7 @@ export default function HomeScreen({
         ref={scrollRef}
         className="flex flex-col flex-1 w-full max-w-md mx-auto px-5 pt-8 pb-36 gap-6 overflow-y-auto"
       >
-        <header className="flex items-start justify-center gap-3 pt-2">
+        <header className="flex items-start justify-start gap-3 pt-2 pb-4 pl-2">
           <h1
             className="logo-timetrace text-[3.6rem] sm:text-[4.2rem]"
             aria-label="TimeTrace"
@@ -161,36 +161,6 @@ export default function HomeScreen({
           </h1>
         </header>
 
-        <div className="card-sticker-paper px-4 py-4 flex items-center justify-between gap-3 rotate-[-0.6deg]">
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.28em] font-bold text-splat-pink">
-              Total Points
-            </div>
-            <div className="font-poster text-[2.7rem] text-splat-black tabular-nums leading-none mt-1">
-              {totalPoints}
-            </div>
-          </div>
-          <div className="text-right">
-            {next ? (
-              <>
-                <div className="text-[10px] uppercase tracking-[0.28em] font-bold text-splat-violet">
-                  Next unlock
-                </div>
-                <div className="font-poster text-base text-splat-black mt-0.5">
-                  {needed} pts
-                </div>
-                <div className="text-xs font-bold text-splat-pink mt-0.5">{next.title}</div>
-              </>
-            ) : (
-              <>
-                <div className="text-[10px] uppercase tracking-[0.28em] font-bold text-splat-pink">
-                  All Unlocked
-                </div>
-                <div className="text-xs font-semibold text-splat-black/70 mt-0.5">Chase Perfect</div>
-              </>
-            )}
-          </div>
-        </div>
 
         {CHAPTERS.map((chap) => (
           <LevelMap
@@ -235,9 +205,19 @@ export default function HomeScreen({
         <TraySheet title="Stats" onClose={() => setActiveSheet(null)}>
           <div className="flex flex-col gap-3">
             <StatTile
+              label="Total Points"
+              value={totalPoints.toLocaleString()}
+              accent="yellow"
+              hint={
+                next
+                  ? `${needed} pts to "${next.title}"`
+                  : 'All levels unlocked - chase Perfect.'
+              }
+            />
+            <StatTile
               label="Current Streak"
               value={streak}
-              accent="yellow"
+              accent="lime"
               hint={
                 streak > 0
                   ? 'Levels passed in a row at 70+ pts.'
@@ -329,12 +309,18 @@ export default function HomeScreen({
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.85rem)' }}
         aria-label="Level select tray"
       >
-        <div className="grid grid-cols-4 gap-3 px-1.5 pt-3 pb-1">
+        <div className="grid grid-cols-5 gap-1.5 px-1 pt-3 pb-1">
+          <TrayKpi
+            label="Points"
+            value={totalPoints}
+            tilt={-2.2}
+            onClick={() => openSheet('stats')}
+          />
           <TrayButton
             label="Paint"
             active={activeSheet === 'paint'}
             accent="cyan"
-            tilt={-2.5}
+            tilt={1.6}
             onClick={() => openSheet('paint')}
           >
             <PaintIcon />
@@ -343,7 +329,7 @@ export default function HomeScreen({
             label="Stats"
             active={activeSheet === 'stats'}
             accent="lime"
-            tilt={1.5}
+            tilt={-1}
             onClick={() => openSheet('stats')}
           >
             <StatsIcon />
@@ -351,7 +337,7 @@ export default function HomeScreen({
           <TrayButton
             label="Leaders"
             accent="pink"
-            tilt={-1.5}
+            tilt={1.2}
             onClick={() => {
               haptics.tap();
               sfx.tap();
@@ -364,7 +350,7 @@ export default function HomeScreen({
             label="Settings"
             active={activeSheet === 'settings'}
             accent="yellow"
-            tilt={2.2}
+            tilt={-1.8}
             onClick={() => openSheet('settings')}
           >
             <GearIcon />
@@ -448,8 +434,8 @@ function TrayButton({
       aria-pressed={active}
       onClick={onClick}
       className={[
-        'relative min-h-[5rem] px-2 py-2.5 rounded-xl border-[3px] border-splat-black',
-        'flex flex-col items-center justify-center gap-1.5 transition-all duration-150',
+        'relative min-h-[4.6rem] px-1 py-2 rounded-xl border-[3px] border-splat-black',
+        'flex flex-col items-center justify-center gap-1 transition-all duration-150',
         'active:translate-x-[1px] active:translate-y-[1px]',
         active
           ? `${p.bg} text-splat-black scale-[1.08]`
@@ -464,11 +450,68 @@ function TrayButton({
     >
       <span className={active ? 'text-splat-black' : p.text}>{children}</span>
       <span
-        className={`text-poster text-[11px] tracking-[0.16em] leading-none ${
+        className={`text-poster text-[10px] tracking-[0.12em] leading-none ${
           active ? 'text-splat-black' : 'text-splat-black/85'
         }`}
       >
         {label}
+      </span>
+    </button>
+  );
+}
+
+function TrayKpi({
+  label,
+  value,
+  tilt = 0,
+  active = false,
+  onClick,
+}: {
+  label: string;
+  value: number | string;
+  tilt?: number;
+  active?: boolean;
+  onClick: () => void;
+}) {
+  const formatted =
+    typeof value === 'number' && value >= 1000
+      ? value.toLocaleString()
+      : String(value);
+  const big = formatted.length > 5;
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      aria-label={`${label} ${formatted}. Tap for stats.`}
+      onClick={onClick}
+      className={[
+        'relative min-h-[4.6rem] px-1 py-2 rounded-xl border-[3px] border-splat-black',
+        'flex flex-col items-center justify-center gap-1 transition-all duration-150',
+        'active:translate-x-[1px] active:translate-y-[1px]',
+        active
+          ? 'bg-splat-yellow text-splat-black scale-[1.08]'
+          : 'bg-splat-black text-splat-yellow hover:-translate-y-[1px]',
+      ].join(' ')}
+      style={{
+        transform: active ? 'rotate(0deg)' : `rotate(${tilt}deg)`,
+        boxShadow: active
+          ? '4px 4px 0 0 #0a0708, 0 0 22px rgba(255, 232, 61, 0.55), 0 0 42px rgba(255, 232, 61, 0.55)'
+          : '4px 4px 0 0 #0a0708',
+      }}
+    >
+      <span
+        className={`text-poster text-[8px] tracking-[0.2em] leading-none ${
+          active ? 'text-splat-black' : 'text-splat-yellow/80'
+        }`}
+      >
+        {label}
+      </span>
+      <span
+        className={`font-poster tabular-nums leading-none ${
+          big ? 'text-[1.1rem]' : 'text-[1.35rem]'
+        } ${active ? 'text-splat-black' : 'text-splat-yellow text-glow-gold'}`}
+      >
+        {formatted}
       </span>
     </button>
   );
@@ -546,13 +589,11 @@ function TrophyIcon() {
 }
 
 function StatsIcon() {
-  // Chunky filled bars with a star spark on top of the tallest
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden>
       <rect x="3" y="16" width="6" height="9" rx="1.2" fill="currentColor" />
       <rect x="11" y="9" width="6" height="16" rx="1.2" fill="currentColor" />
       <rect x="19" y="13" width="6" height="12" rx="1.2" fill="currentColor" />
-      {/* spark on the tallest bar */}
       <path
         d="M14 3 l1.2 2.4 2.4 1.2 -2.4 1.2 -1.2 2.4 -1.2 -2.4 -2.4 -1.2 2.4 -1.2 z"
         fill="currentColor"

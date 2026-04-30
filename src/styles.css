@@ -107,6 +107,46 @@
     text-shadow: 0 0 14px rgba(255, 61, 164, 0.85), 0 0 28px rgba(255, 61, 164, 0.45);
   }
 
+  /* Slow rotation drift for chapter-banner topo backgrounds. The element
+     sets --topo-rot / --topo-skew at rest; the keyframe nudges +/- 1.2deg
+     and slides 2px so the contours feel like they breathe. */
+  @keyframes topoDrift {
+    0%,
+    100% {
+      transform:
+        rotate(var(--topo-rot, 0deg))
+        skewX(var(--topo-skew, 0deg))
+        translateY(0);
+    }
+    50% {
+      transform:
+        rotate(calc(var(--topo-rot, 0deg) + 1.2deg))
+        skewX(var(--topo-skew, 0deg))
+        translateY(-2px);
+    }
+  }
+
+  /* Per-band stroke-opacity ripple — staggered via animation-delay so the
+     rings appear to pulse outward from the center like sonar pings. */
+  @keyframes topoBand {
+    0%,
+    100% {
+      stroke-opacity: var(--band-alpha, 0.25);
+    }
+    50% {
+      stroke-opacity: calc(var(--band-alpha, 0.25) * 1.85);
+    }
+  }
+
+  .topo-svg {
+    animation: topoDrift var(--topo-dur, 14s) ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .topo-band {
+    animation: topoBand var(--band-dur, 5.4s) ease-in-out infinite;
+  }
+
   /* Same gradient + rainbowShift animation as .text-rainbow, but applied as
      a regular background fill — used to flag tray buttons that navigate to
      a different screen. */

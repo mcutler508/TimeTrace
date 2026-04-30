@@ -18,6 +18,8 @@ interface Props {
   onSelect: (id: PaintStyleId) => void;
   onSelectColor: (id: PaintStyleId, colorId: string) => void;
   onSelectVariant: (id: PaintStyleId, variantId: string) => void;
+  forceOpen?: boolean;
+  className?: string;
 }
 
 const SWATCH_W = 132;
@@ -36,6 +38,8 @@ export default function PaintStylePicker({
   onSelect,
   onSelectColor,
   onSelectVariant,
+  forceOpen = false,
+  className,
 }: Props) {
   const selectedMeta = useMemo(
     () => PAINT_STYLES.find((s) => s.id === selectedId) ?? PAINT_STYLES[0],
@@ -48,19 +52,24 @@ export default function PaintStylePicker({
   const allowColorChange = !selectedMeta.noColorCustomization;
   const showVariants = (selectedMeta.variants?.length ?? 0) > 1;
   const [open, setOpen] = useState(false);
+  const isOpen = forceOpen || open;
 
   const previewColor = resolvePaintColor(selectedColorId, PREVIEW_ACCENT);
 
   return (
     <section
       aria-labelledby="paint-style-heading"
-      className="card-sticker-paper px-4 py-3 rotate-[0.4deg] flex flex-col gap-3"
+      className={[
+        'card-sticker-paper px-4 py-3 rotate-[0.4deg] flex flex-col gap-3',
+        className ?? '',
+      ].join(' ')}
     >
       <button
         type="button"
-        aria-expanded={open}
+        aria-expanded={isOpen}
         aria-controls="paint-panel-body"
         onClick={() => {
+          if (forceOpen) return;
           haptics.tap();
           sfx.tap();
           setOpen((v) => !v);
@@ -78,7 +87,9 @@ export default function PaintStylePicker({
         </span>
         <span
           className={`text-splat-pink text-[12px] font-bold transition-transform ${
-            open ? 'rotate-180' : ''
+            forceOpen ? 'hidden' : ''
+          } ${
+            isOpen ? 'rotate-180' : ''
           }`}
           aria-hidden
         >
@@ -86,7 +97,7 @@ export default function PaintStylePicker({
         </span>
       </button>
 
-      {open && (
+      {isOpen && (
         <div id="paint-panel-body" className="flex flex-col gap-3 animate-fadeIn">
           <div className="flex items-baseline justify-between">
             <span className="text-[10px] uppercase tracking-[0.22em] text-splat-violet font-bold">

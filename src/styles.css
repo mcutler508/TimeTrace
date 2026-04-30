@@ -126,6 +126,67 @@
     animation: rainbowShift 6s ease-in-out infinite;
   }
 
+  /* TimeTrace wordmark — stacked sticker logo. Bungee + chunky chromatic drop
+     shadow + rainbow gradient + outer cyan halo. The two lines tilt opposite
+     directions for that arcade-poster cadence. */
+  .logo-timetrace {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 0.82;
+    pointer-events: none;
+  }
+
+  .logo-timetrace__row {
+    font-family: 'Bungee', Impact, system-ui, sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    -webkit-text-stroke: 3px #0a0708;
+    paint-order: stroke fill;
+    background: linear-gradient(
+      90deg,
+      #ff3da4 0%,
+      #ff7a3d 18%,
+      #ffe83d 35%,
+      #a4ff3d 55%,
+      #3df0ff 75%,
+      #a44dff 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    /* 9-step black extrude builds the chunky 3D block; outer halo glows cyan/gold. */
+    text-shadow:
+      1px 1px 0 #0a0708,
+      2px 2px 0 #0a0708,
+      3px 3px 0 #0a0708,
+      4px 4px 0 #0a0708,
+      5px 5px 0 #0a0708,
+      6px 6px 0 #0a0708,
+      7px 7px 0 #0a0708,
+      8px 8px 0 #0a0708,
+      9px 9px 0 #0a0708,
+      0 0 22px rgba(61, 240, 255, 0.55),
+      0 0 44px rgba(255, 232, 61, 0.35);
+    transform-origin: left center;
+    animation: rainbowShift 6s ease-in-out infinite;
+  }
+
+  .logo-timetrace__row--time {
+    transform: rotate(-2.5deg);
+    margin-left: 0.05em;
+  }
+
+  .logo-timetrace__row--trace {
+    transform: rotate(1.5deg) translateX(0.18em);
+    margin-top: 0.08em;
+    /* Offset the gradient phase so the two rows flow out of sync — colors
+       cascade diagonally across the wordmark instead of moving in lockstep. */
+    animation-delay: -3s;
+  }
+
   .text-chromatic {
     text-shadow:
       -2px 0 0 rgba(255, 61, 164, 0.65),

@@ -60,34 +60,27 @@ function nodeY(i: number): number {
  * gets a different band count, density, and rotation for visual identity.
  */
 function ChapterTopoBg({ chapterId, accent }: { chapterId: number; accent: string }) {
-  // Per-chapter recipe — band count, inset step, edge waviness, rotation,
-  // and animation timing. Calmer chapters get longer drift periods.
+  // Per-chapter recipe — band count, inset step, edge waviness, rotation.
   const cfg = ((): {
     bandCount: number;
     inset: number;
     waviness: number;
     rotation: number;
     skewX: number;
-    /** Outer drift cycle in seconds. */
-    driftDur: number;
-    /** Per-band ripple cycle in seconds. */
-    bandDur: number;
-    /** Stagger between adjacent band ripples in seconds. */
-    bandStagger: number;
   } => {
     switch (chapterId) {
       case 1:
-        return { bandCount: 7, inset: 14, waviness: 6, rotation: -2, skewX: 0, driftDur: 18, bandDur: 6.5, bandStagger: 0.45 };
+        return { bandCount: 7, inset: 14, waviness: 6, rotation: -2, skewX: 0 };
       case 2:
-        return { bandCount: 8, inset: 12, waviness: 9, rotation: 3, skewX: -4, driftDur: 16, bandDur: 5.8, bandStagger: 0.4 };
+        return { bandCount: 8, inset: 12, waviness: 9, rotation: 3, skewX: -4 };
       case 3:
-        return { bandCount: 9, inset: 11, waviness: 11, rotation: -3, skewX: 4, driftDur: 15, bandDur: 5.2, bandStagger: 0.38 };
+        return { bandCount: 9, inset: 11, waviness: 11, rotation: -3, skewX: 4 };
       case 4:
-        return { bandCount: 6, inset: 16, waviness: 18, rotation: 6, skewX: -8, driftDur: 9, bandDur: 3.4, bandStagger: 0.22 };
+        return { bandCount: 6, inset: 16, waviness: 18, rotation: 6, skewX: -8 };
       case 5:
-        return { bandCount: 10, inset: 10, waviness: 14, rotation: -4, skewX: 6, driftDur: 12, bandDur: 2.8, bandStagger: 0.18 };
+        return { bandCount: 10, inset: 10, waviness: 14, rotation: -4, skewX: 6 };
       default:
-        return { bandCount: 7, inset: 14, waviness: 8, rotation: 0, skewX: 0, driftDur: 16, bandDur: 6, bandStagger: 0.4 };
+        return { bandCount: 7, inset: 14, waviness: 8, rotation: 0, skewX: 0 };
     }
   })();
 
@@ -127,33 +120,23 @@ function ChapterTopoBg({ chapterId, accent }: { chapterId: number; accent: strin
         d={d}
         fill="none"
         stroke={accent}
+        strokeOpacity={alpha}
         strokeWidth={strokeW}
         strokeLinejoin="round"
-        className="topo-band"
-        style={
-          {
-            '--band-alpha': alpha.toFixed(3),
-            animationDelay: `${i * cfg.bandStagger}s`,
-          } as React.CSSProperties
-        }
       />,
     );
   }
 
   return (
     <svg
-      className="absolute inset-0 w-full h-full pointer-events-none topo-svg"
+      className="absolute inset-0 w-full h-full pointer-events-none"
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
       aria-hidden
-      style={
-        {
-          '--topo-rot': `${cfg.rotation}deg`,
-          '--topo-skew': `${cfg.skewX}deg`,
-          '--topo-dur': `${cfg.driftDur}s`,
-          '--band-dur': `${cfg.bandDur}s`,
-        } as React.CSSProperties
-      }
+      style={{
+        transform: `rotate(${cfg.rotation}deg) skewX(${cfg.skewX}deg)`,
+        transformOrigin: 'center',
+      }}
     >
       {bands}
     </svg>
